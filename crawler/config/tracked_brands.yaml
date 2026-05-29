@@ -1,0 +1,29 @@
+# 수동으로 추적할 브랜드 목록 (musinsa_brand_id 기준)
+# 랭킹 Top 100 / 신규 입점 30일 이내가 아니어도 신상품 수집 대상에 포함된다.
+# scripts/find_brand_id.py 로 한글명에서 brand_id 를 조회해 채워 넣는다.
+
+tracked_brands: 
+    - idontwannasell
+    - cord
+    - nomalic
+    - roaringrad
+    - thrasher
+    - oakley
+    - bsrabbit
+    - aakam
+    - sk8errock
+    - glack
+    - huf
+    - schisminducing
+    - sundayoffclub
+    - massnoun
+    - visionstreetwear
+    - ajobyajooriginallabel
+    - artistwear
+    - grailz
+
+# 예시:
+# tracked_brands:
+#   - thisisneverthat
+#   - covernat
+#   - mahagrid
