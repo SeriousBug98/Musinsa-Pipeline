@@ -4,9 +4,9 @@
 대상 브랜드 × 6개 카테고리 조합으로 PLP 신상품(page=1)을 호출해 new_products 에 upsert.
 총 호출 수 = len(targets) × len(CATEGORIES).
 
-PLP brand 필터 (2026-05 기준):
-- `brand=<musinsa_brand_id>` 파라미터로 그 브랜드 상품만 반환됨 (caller=CATEGORY 유지)
-- `brandIds` 키는 무시됨, `caller=BRAND` 로 바꾸면 응답 구조 변경됨
+PLP brand 필터 (2026-06 기준):
+- `brand=<musinsa_brand_id>` 파라미터로 그 브랜드 상품만 반환됨 (caller=FLAGSHIP)
+- `brandIds` 키는 무시됨
 
 품절 전이 로직:
 - 신규: 응답이 sold_out 이면 sold_out_at = now() 로 기록
@@ -42,13 +42,12 @@ CATEGORIES: dict[str, str] = {
 }
 
 # PLP 필수 baseline 파라미터.
-# storeCode, caller 가 없으면 DISPLAY_000_0001 (잘못된 파라미터) 로 400.
+# caller 가 없거나 잘못되면 DISPLAY_000_0001 (잘못된 파라미터) 로 400.
 # isSoldOut=true 가 빠지면 응답에서 품절 상품이 제외됨 — 품절 현황 수집 목적상 필수.
 PRODUCT_BASE_PARAMS: dict[str, str | int] = {
     "gf": "A",
-    "storeCode": "musinsa",
-    "caller": "CATEGORY",
-    "sort": "NEW_PRODUCT",
+    "sortCode": "NEW",
+    "caller": "FLAGSHIP",
     "size": 30,
     "isSoldOut": "true",
 }
