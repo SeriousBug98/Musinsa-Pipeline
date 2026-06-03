@@ -1,0 +1,186 @@
+package com.musinsa.processor.service;
+
+import com.musinsa.processor.config.ScoringConfig;
+import com.musinsa.processor.domain.BrandScore;
+import com.musinsa.processor.repository.BrandFanRepository;
+import com.musinsa.processor.repository.BrandRankingRepository;
+import com.musinsa.processor.repository.BrandScoreRepository;
+import com.musinsa.processor.repository.NewProductRepository;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+/**
+ * 핵심 스코어링 로직.
+ *
+ * <pre>
+ * ① native SQL 3개로 브랜드별 raw 집계값 조회
+ * ② brand_id 기준 병합
+ * ③ 지표별 백분위 정규화 (0~100, mid-rank)
+ * ④ 재정규화 가중합  total = Σ(pct·w) / Σ(w)  (존재하는 지표만)
+ * ⑤ brand_scores INSERT (append-only)
+ * </pre>
+ */
+@Service
+public class ScoringService {
+
+    private static final Logger log = LoggerFactory.getLogger(ScoringService.class);
+
+    private final BrandRankingRepository rankingRepository;
+    private final BrandFanRepository fanRepository;
+    private final NewProductRepository newProductRepository;
+    private final BrandScoreRepository scoreRepository;
+    private final ScoringConfig config;
+
+    public ScoringService(
+            BrandRankingRepository rankingRepository,
+            BrandFanRepository fanRepository,
+            NewProductRepository newProductRepository,
+            BrandScoreRepository scoreRepository,
+            ScoringConfig config) {
+        this.rankingRepository = rankingRepository;
+        this.fanRepository = fanRepository;
+        this.newProductRepository = newProductRepository;
+        this.scoreRepository = scoreRepository;
+        this.config = config;
+    }
+
+    /** 한 번의 스코어링 run. 반환값은 INSERT 된 brand_scores 행 수. */
+    @Transactional
+    public int run() {
+        LocalDateTime scoredAt = LocalDateTime.now();
+        ScoringConfig.Thresholds t = config.thresholds();
+
+        Map<Long, Double> rankSlopes = new HashMap<>();
+        rankingRepository.aggregateRankChange(t.minRankDays()).forEach(r -> {
+            if (r.getRankSlope() != null) {
+                rankSlopes.put(r.getBrandId(), r.getRankSlope());
+            }
+        });
+
+        Map<Long, Double> fanSlopes = new HashMap<>();
+        fanRepository.aggregateFanGrowth(t.minFanDays(), t.minFanCount()).forEach(r -> {
+            if (r.getFanSlope() != null) {
+                fanSlopes.put(r.getBrandId(), r.getFanSlope());
+            }
+        });
+
+        Map<Long, Double> soldoutRaws = new HashMap<>();
+        newProductRepository.aggregateSoldoutSpeed(t.soldoutHoldHours(), t.soldoutShrinkage())
+                .forEach(r -> {
+                    if (r.getSoldoutRaw() != null) {
+                        soldoutRaws.put(r.getBrandId(), r.getSoldoutRaw());
+                    }
+                });
+
+        List<BrandScore> scores = compute(rankSlopes, fanSlopes, soldoutRaws, scoredAt);
+        scoreRepository.saveAll(scores);
+
+        log.info("scoring run done: rank={}, fan={}, soldout={}, inserted={}",
+                rankSlopes.size(), fanSlopes.size(), soldoutRaws.size(), scores.size());
+        return scores.size();
+    }
+
+    /**
+     * 순수 계산부 (DB 비의존, 단위 테스트 가능).
+     * 입력 맵의 key 는 brand_id, value 는 각 지표의 raw 값.
+     */
+    public List<BrandScore> compute(
+            Map<Long, Double> rankSlopes,
+            Map<Long, Double> fanSlopes,
+            Map<Long, Double> soldoutRaws,
+            LocalDateTime scoredAt) {
+
+        Map<Long, Double> rankPct = toPercentiles(rankSlopes);
+        Map<Long, Double> fanPct = toPercentiles(fanSlopes);
+        Map<Long, Double> soldoutPct = toPercentiles(soldoutRaws);
+
+        ScoringConfig.Weights w = config.weights();
+
+        Set<Long> candidates = new LinkedHashSet<>();
+        candidates.addAll(rankSlopes.keySet());
+        candidates.addAll(fanSlopes.keySet());
+        candidates.addAll(soldoutRaws.keySet());
+
+        List<BrandScore> result = new ArrayList<>();
+        for (Long brandId : candidates) {
+            Double rp = rankPct.get(brandId);
+            Double fp = fanPct.get(brandId);
+            Double sp = soldoutPct.get(brandId);
+
+            // 지표가 하나도 없으면 신뢰도 없는 점수 → INSERT 안 함
+            if (rp == null && fp == null && sp == null) {
+                continue;
+            }
+
+            double weightedSum = 0.0;
+            double weightTotal = 0.0;
+            if (rp != null) {
+                weightedSum += rp * w.rank();
+                weightTotal += w.rank();
+            }
+            if (fp != null) {
+                weightedSum += fp * w.fan();
+                weightTotal += w.fan();
+            }
+            if (sp != null) {
+                weightedSum += sp * w.soldout();
+                weightTotal += w.soldout();
+            }
+            double total = weightTotal > 0 ? weightedSum / weightTotal : 0.0;
+
+            // 결손 지표의 per-metric 점수는 NOT NULL 컬럼이므로 0.00 으로 저장.
+            // (total 은 위에서 재정규화로 이미 제외 처리됨)
+            result.add(new BrandScore(
+                    brandId,
+                    score(rp),
+                    score(fp),
+                    score(sp),
+                    score(total),
+                    scoredAt));
+        }
+        return result;
+    }
+
+    /**
+     * 모집단 내 mid-rank 백분위(0~100).
+     * pct = (strictly_less + 0.5·equal) / n · 100. 동점은 평균 순위로 처리.
+     */
+    private static Map<Long, Double> toPercentiles(Map<Long, Double> values) {
+        Map<Long, Double> out = new HashMap<>();
+        int n = values.size();
+        if (n == 0) {
+            return out;
+        }
+        for (Map.Entry<Long, Double> e : values.entrySet()) {
+            double v = e.getValue();
+            int less = 0;
+            int equal = 0;
+            for (double other : values.values()) {
+                if (other < v) {
+                    less++;
+                } else if (other == v) {
+                    equal++;
+                }
+            }
+            out.put(e.getKey(), (less + 0.5 * equal) / n * 100.0);
+        }
+        return out;
+    }
+
+    /** [0,100] 클램프 후 소수 2자리 반올림. null 은 0.00 으로. */
+    private static BigDecimal score(Double v) {
+        double d = v == null ? 0.0 : Math.max(0.0, Math.min(100.0, v));
+        return BigDecimal.valueOf(d).setScale(2, RoundingMode.HALF_UP);
+    }
+}

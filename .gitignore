@@ -37,10 +37,10 @@ Thumbs.db
 *.swp
 *.swo
 
-# --- Java / Gradle (api/ 용 — 추후 Spring Boot 추가될 때) ---
-api/build/
-api/.gradle/
-api/bin/
+# --- Java / Gradle (processor/ Spring Boot 모듈) ---
+processor/build/
+processor/.gradle/
+processor/bin/
 *.class
 
 CLAUDE.md
