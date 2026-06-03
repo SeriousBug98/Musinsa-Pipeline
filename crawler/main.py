@@ -78,7 +78,7 @@ def main() -> None:
     )
     scheduler.add_job(
         job_rankings,
-        trigger=IntervalTrigger(hours=3),
+        trigger=IntervalTrigger(hours=6),
         id="rankings",
         name="브랜드 랭킹 수집",
     )
@@ -90,7 +90,7 @@ def main() -> None:
     )
     scheduler.add_job(
         job_products,
-        trigger=IntervalTrigger(hours=6),
+        trigger=IntervalTrigger(hours=3),
         id="products",
         name="신상품 품절 현황 수집",
     )

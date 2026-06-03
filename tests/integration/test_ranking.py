@@ -17,11 +17,12 @@ sys.path.insert(0, str(ROOT / "crawler"))
 
 from sqlalchemy import func, select  # noqa: E402
 
+from collectors._http import build_session  # noqa: E402
 from collectors.ranking_collector import (  # noqa: E402
     RANKING_MODULE_TYPE,
-    RANKING_PARAMS,
-    RANKING_URL,
-    _fetch_ranking,
+    RANKING_URL1,
+    RANKING_URL1_PARAMS,
+    _fetch_page1,
     _parse_modules,
     collect_rankings,
 )
@@ -41,11 +42,12 @@ def _fail(label: str, msg: str) -> bool:
 
 def test_api_call() -> bool:
     try:
-        payload = _fetch_ranking()
+        with build_session() as http:
+            payload = _fetch_page1(http)
     except Exception as e:
         return _fail(
             "api_call",
-            f"{RANKING_URL} params={RANKING_PARAMS} 요청 실패: {e!r}",
+            f"{RANKING_URL1} params={RANKING_URL1_PARAMS} 요청 실패: {e!r}",
         )
     if not payload:
         return _fail("api_call", "응답 body 비어있음")
@@ -54,7 +56,8 @@ def test_api_call() -> bool:
 
 def test_response_fields() -> bool:
     try:
-        payload = _fetch_ranking()
+        with build_session() as http:
+            payload = _fetch_page1(http)
     except Exception as e:
         return _fail("response_fields", f"fetch 실패: {e!r}")
 

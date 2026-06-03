@@ -30,7 +30,7 @@ from collectors.product_collector import (  # noqa: E402
     NEW_JOIN_DAYS,
     PRODUCT_URL,
     TOP_RANK_LIMIT,
-    _fetch_category,
+    _fetch_brand_category,
     _select_target_brands,
     collect_new_products,
 )
@@ -52,6 +52,9 @@ def _fail(label: str, msg: str) -> bool:
 RUN_STARTED_AT = datetime.now()
 
 
+PROBE_BRAND_ID = "thisisneverthat"  # 카테고리 엔드포인트 도달 확인용 고정 브랜드
+
+
 def test_categories_all_reachable() -> bool:
     http = build_session()
     sizes: dict[str, int] = {}
@@ -59,7 +62,7 @@ def test_categories_all_reachable() -> bool:
     try:
         for i, (code, name) in enumerate(CATEGORIES.items()):
             try:
-                entries = _fetch_category(http, code)
+                entries = _fetch_brand_category(http, PROBE_BRAND_ID, code)
                 sizes[code] = len(entries)
                 if not entries:
                     failed.append((f"{code}({name})", "0 entries"))
