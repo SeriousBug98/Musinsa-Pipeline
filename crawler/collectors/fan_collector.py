@@ -115,8 +115,7 @@ def collect_fans() -> int:
     rows: list[dict] = []
     failures = 0
 
-    http = build_session()
-    try:
+    with build_session() as http:
         for i in range(0, len(musinsa_ids), BATCH_SIZE):
             batch = musinsa_ids[i : i + BATCH_SIZE]
             try:
@@ -139,8 +138,6 @@ def collect_fans() -> int:
 
             if i + BATCH_SIZE < len(musinsa_ids):
                 polite_sleep()
-    finally:
-        http.close()
 
     if rows:
         with get_session() as session:

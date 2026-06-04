@@ -182,7 +182,9 @@ def collect_new_products() -> int:
     try:
         for b_idx, (mb_id, pk) in enumerate(brand_items, start=1):
             brand_matched = 0
-            for cat_code, _ in cats:
+            for cat_idx, (cat_code, _) in enumerate(cats):
+                if cat_idx > 0:
+                    polite_sleep()
                 try:
                     entries = _fetch_brand_category(http, mb_id, cat_code)
                 except Exception:

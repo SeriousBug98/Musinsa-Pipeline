@@ -5,7 +5,6 @@ from pathlib import Path
 
 from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.triggers.cron import CronTrigger
-from apscheduler.triggers.interval import IntervalTrigger
 
 from collectors.brand_list_collector import collect_brand_list
 from collectors.fan_collector import collect_fans
@@ -75,24 +74,29 @@ def main() -> None:
         trigger=CronTrigger(hour=3),
         id="brand_list",
         name="브랜드 목록 수집",
+        max_instances=1,
     )
+    # rankings: 2,8,14,20시 — products(0,6,12,18시)와 겹치지 않도록 오프셋
     scheduler.add_job(
         job_rankings,
-        trigger=IntervalTrigger(hours=6),
+        trigger=CronTrigger(hour="2,8,14,20"),
         id="rankings",
         name="브랜드 랭킹 수집",
+        max_instances=1,
     )
     scheduler.add_job(
         job_fans,
         trigger=CronTrigger(hour=0),
         id="fans",
         name="브랜드 팬수 수집",
+        max_instances=1,
     )
     scheduler.add_job(
         job_products,
-        trigger=IntervalTrigger(hours=3),
+        trigger=CronTrigger(hour="0,6,12,18"),
         id="products",
         name="신상품 품절 현황 수집",
+        max_instances=1,
     )
 
     logger.info("scheduler starting with %d jobs", len(scheduler.get_jobs()))
