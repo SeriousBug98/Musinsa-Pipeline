@@ -9,7 +9,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public record ScoringConfig(
         Weights weights,
         Thresholds thresholds,
-        int hotBrandsLimit) {
+        double decayLambda,
+        int risingBrandsLimit) {
 
     public record Weights(double rank, double fan, double soldout) {
     }

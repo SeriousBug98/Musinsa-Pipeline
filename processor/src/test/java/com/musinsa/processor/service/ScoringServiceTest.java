@@ -21,6 +21,7 @@ class ScoringServiceTest {
         ScoringConfig config = new ScoringConfig(
                 new ScoringConfig.Weights(0.45, 0.35, 0.20),
                 new ScoringConfig.Thresholds(500, 3, 4, 24, 5.0),
+                0.231,   // decayLambda — 단위 테스트는 compute()만 호출하므로 실제 사용 안 됨
                 20);
         return new ScoringService(null, null, null, null, config);
     }

@@ -4,11 +4,11 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
- * @deprecated /brands/hot 엔드포인트가 /brands/rising 으로 변경됨.
- *             {@link RisingBrandDto} 를 사용할 것.
+ * GET /brands/rising 응답 항목.
+ * rank/fan/soldout 지표의 기울기(모멘텀) 기반 점수 — "현재 인기"가 아니라 "상승 중인" 브랜드.
+ * brand_scores 최신 배치 + brands 조인 결과.
  */
-@Deprecated
-public record HotBrandDto(
+public record RisingBrandDto(
         Long brandId,
         String musinsaBrandId,
         String name,

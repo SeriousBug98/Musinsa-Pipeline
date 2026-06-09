@@ -62,15 +62,17 @@ public class ScoringService {
         LocalDateTime scoredAt = LocalDateTime.now();
         ScoringConfig.Thresholds t = config.thresholds();
 
+        double lambda = config.decayLambda();
+
         Map<Long, Double> rankSlopes = new HashMap<>();
-        rankingRepository.aggregateRankChange(t.minRankDays()).forEach(r -> {
+        rankingRepository.aggregateRankChange(t.minRankDays(), lambda).forEach(r -> {
             if (r.getRankSlope() != null) {
                 rankSlopes.put(r.getBrandId(), r.getRankSlope());
             }
         });
 
         Map<Long, Double> fanSlopes = new HashMap<>();
-        fanRepository.aggregateFanGrowth(t.minFanDays(), t.minFanCount()).forEach(r -> {
+        fanRepository.aggregateFanGrowth(t.minFanDays(), t.minFanCount(), lambda).forEach(r -> {
             if (r.getFanSlope() != null) {
                 fanSlopes.put(r.getBrandId(), r.getFanSlope());
             }

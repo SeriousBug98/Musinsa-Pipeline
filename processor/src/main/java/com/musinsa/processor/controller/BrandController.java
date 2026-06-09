@@ -2,7 +2,7 @@ package com.musinsa.processor.controller;
 
 import com.musinsa.processor.config.ScoringConfig;
 import com.musinsa.processor.dto.BrandTrendDto;
-import com.musinsa.processor.dto.HotBrandDto;
+import com.musinsa.processor.dto.RisingBrandDto;
 import com.musinsa.processor.repository.BrandScoreRepository;
 import com.musinsa.processor.service.ScoringService;
 import java.time.LocalDateTime;
@@ -32,11 +32,14 @@ public class BrandController {
         this.scoringService = scoringService;
     }
 
-    /** 가장 최근 배치 기준 핫 브랜드 상위 limit 개. */
-    @GetMapping("/hot")
-    public List<HotBrandDto> hot(@RequestParam(required = false) Integer limit) {
-        int effectiveLimit = limit != null ? limit : config.hotBrandsLimit();
-        return scoreRepository.findHotBrands(PageRequest.of(0, effectiveLimit));
+    /**
+     * 가장 최근 배치 기준 모멘텀(상승세) 상위 limit 개.
+     * rank/fan/soldout 기울기를 가중합한 점수 기준 — "현재 인기" 브랜드가 아니라 "지금 올라오는 중인" 브랜드.
+     */
+    @GetMapping("/rising")
+    public List<RisingBrandDto> rising(@RequestParam(required = false) Integer limit) {
+        int effectiveLimit = limit != null ? limit : config.risingBrandsLimit();
+        return scoreRepository.findRisingBrands(PageRequest.of(0, effectiveLimit));
     }
 
     /** 특정 브랜드의 최근 30일 점수 추이. */
