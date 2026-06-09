@@ -11,20 +11,30 @@ public interface BrandFanRepository extends JpaRepository<BrandFan, Long> {
 
     /**
      * fan_growth 집계: 최근 14일간 팬수 비율 성장 추세(기울기).
-     * - ln(fan_count) 로 절댓값이 아닌 비율 성장 측정 (fan_count > 0 가드로 ln(0) 방지)
+     * - 하루 med_fan(중앙값)으로 수집 주기 변화에 의한 가중치 불균형 차단 (rank_change 와 동일 패턴)
+     * - ln(med_fan) 으로 절댓값이 아닌 비율 성장 측정 (fan_count > 0 가드로 ln(0) 방지)
+     * - HAVING count(*) 는 daily CTE 기준이므로 정확히 "관측된 날 수" 를 셈
      * - 관측일 minFanDays 미만 또는 max 팬수 minFanCount 미만 브랜드는 제외(HAVING)
      */
     @Query(value = """
+            WITH daily AS (
+                SELECT
+                    brand_id,
+                    date_trunc('day', collected_at)                       AS d,
+                    percentile_cont(0.5) WITHIN GROUP (ORDER BY fan_count) AS med_fan
+                FROM brand_fans
+                WHERE collected_at >= NOW() - INTERVAL '14 days'
+                  AND fan_count > 0
+                GROUP BY brand_id, date_trunc('day', collected_at)
+            )
             SELECT
-                brand_id                                                                 AS "brandId",
-                regr_slope(ln(fan_count), EXTRACT(EPOCH FROM collected_at) / 86400.0)     AS "fanSlope",
-                count(*)                                                                 AS "daysObserved"
-            FROM brand_fans
-            WHERE collected_at >= NOW() - INTERVAL '14 days'
-              AND fan_count > 0
+                brand_id                                                              AS "brandId",
+                regr_slope(ln(med_fan), EXTRACT(EPOCH FROM d) / 86400.0)             AS "fanSlope",
+                count(*)                                                              AS "daysObserved"
+            FROM daily
             GROUP BY brand_id
             HAVING count(*) >= :minFanDays
-               AND max(fan_count) >= :minFanCount
+               AND max(med_fan) >= :minFanCount
             """, nativeQuery = true)
     List<FanRawDto> aggregateFanGrowth(
             @Param("minFanDays") int minFanDays,

@@ -10,6 +10,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -153,8 +154,9 @@ public class ScoringService {
     }
 
     /**
-     * 모집단 내 mid-rank 백분위(0~100).
-     * pct = (strictly_less + 0.5·equal) / n · 100. 동점은 평균 순위로 처리.
+     * 모집단 내 mid-rank 백분위(0~100). O(n log n).
+     * pct = (lo + (hi-lo)/2.0 + 0.5) / n * 100. 동점은 인덱스 구간으로 처리하여
+     * double == 비교를 사용하지 않으므로 부동소수점 오판 위험이 없다.
      */
     private static Map<Long, Double> toPercentiles(Map<Long, Double> values) {
         Map<Long, Double> out = new HashMap<>();
@@ -162,18 +164,25 @@ public class ScoringService {
         if (n == 0) {
             return out;
         }
-        for (Map.Entry<Long, Double> e : values.entrySet()) {
-            double v = e.getValue();
-            int less = 0;
-            int equal = 0;
-            for (double other : values.values()) {
-                if (other < v) {
-                    less++;
-                } else if (other == v) {
-                    equal++;
-                }
+
+        // 값 기준 오름차순 정렬
+        List<Map.Entry<Long, Double>> sorted = new ArrayList<>(values.entrySet());
+        sorted.sort(Comparator.comparingDouble(Map.Entry::getValue));
+
+        // 동점 구간 [lo, hi] 을 한 번의 순회로 계산
+        int i = 0;
+        while (i < n) {
+            double v = sorted.get(i).getValue();
+            int lo = i;
+            // 같은 값이 이어지는 구간 끝 탐색
+            while (i < n && sorted.get(i).getValue() == v) {
+                i++;
             }
-            out.put(e.getKey(), (less + 0.5 * equal) / n * 100.0);
+            int hi = i - 1; // 동점 구간: [lo, hi]
+            double pct = (lo + (hi - lo) / 2.0 + 0.5) / n * 100.0;
+            for (int j = lo; j <= hi; j++) {
+                out.put(sorted.get(j).getKey(), pct);
+            }
         }
         return out;
     }
