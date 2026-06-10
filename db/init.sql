@@ -69,3 +69,20 @@ CREATE TABLE brand_scores (
 CREATE INDEX idx_brand_scores_brand_id ON brand_scores(brand_id);
 CREATE INDEX idx_brand_scores_total_score ON brand_scores(total_score DESC);
 CREATE INDEX idx_brand_scores_scored_at ON brand_scores(scored_at);
+
+-- Grafana 읽기전용 유저 (새 환경용 — 비밀번호는 db/grafana_readonly.sql 로 별도 설정 필요)
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'grafana_ro') THEN
+    CREATE ROLE grafana_ro NOLOGIN;
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  EXECUTE 'GRANT CONNECT ON DATABASE ' || current_database() || ' TO grafana_ro';
+END $$;
+
+GRANT USAGE ON SCHEMA public TO grafana_ro;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO grafana_ro;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO grafana_ro;

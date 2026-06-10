@@ -1,0 +1,16 @@
+apiVersion: 1
+datasources:
+  - name: Musinsa PostgreSQL
+    type: postgres
+    uid: musinsa-postgres
+    access: proxy
+    url: postgres:5432
+    database: $__env{DB_NAME}
+    user: $__env{GRAFANA_DB_USER}
+    secureJsonData:
+      password: $__env{GRAFANA_DB_PASSWORD}
+    jsonData:
+      sslmode: disable
+      postgresVersion: 1500
+    isDefault: true
+    editable: false

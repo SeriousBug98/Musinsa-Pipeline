@@ -1,0 +1,246 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": { "type": "grafana", "uid": "-- Grafana --" },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "datasource": { "type": "postgres", "uid": "musinsa-postgres" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "custom": {
+            "align": "auto",
+            "cellOptions": { "type": "color-background" },
+            "inspect": false
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "transparent", "value": null },
+              { "color": "yellow", "value": 50 },
+              { "color": "green", "value": 75 }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "브랜드" },
+            "properties": [
+              { "id": "custom.cellOptions", "value": { "type": "auto" } },
+              { "id": "custom.width", "value": 200 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "기준시각" },
+            "properties": [
+              { "id": "custom.cellOptions", "value": { "type": "auto" } },
+              { "id": "unit", "value": "dateTimeAsLocal" }
+            ]
+          }
+        ]
+      },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 0 },
+      "id": 1,
+      "options": {
+        "cellHeight": "sm",
+        "footer": { "countRows": false, "fields": "", "reducer": ["sum"], "show": false },
+        "showHeader": true,
+        "sortBy": [{ "desc": true, "displayName": "종합" }]
+      },
+      "pluginVersion": "11.1.0",
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "musinsa-postgres" },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT DISTINCT ON (bs.brand_id)\n  b.name AS \"브랜드\",\n  ROUND(bs.total_score, 1) AS \"종합\",\n  ROUND(bs.rank_change_score, 1) AS \"랭킹\",\n  ROUND(bs.fan_growth_score, 1) AS \"팬\",\n  ROUND(bs.soldout_speed_score, 1) AS \"품절\",\n  bs.scored_at AS \"기준시각\"\nFROM brand_scores bs\nJOIN brands b ON b.id = bs.brand_id\nWHERE bs.scored_at = (SELECT MAX(scored_at) FROM brand_scores)\nORDER BY bs.brand_id, bs.total_score DESC",
+          "refId": "A",
+          "sql": { "columns": [], "groupBy": [], "limit": 50 }
+        }
+      ],
+      "title": "상승 브랜드 리더보드 (최신 배치)",
+      "type": "table"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "musinsa-postgres" },
+      "description": "순위는 낮을수록 상위권 (1위 = 최고). 선이 내려갈수록 순위 상승.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "순위 (낮을수록 상위)",
+            "axisPlacement": "auto",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "auto",
+            "spanNulls": true,
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "off" }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "green", "value": null }]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 10, "w": 12, "x": 0, "y": 8 },
+      "id": 2,
+      "options": {
+        "legend": { "calcs": ["last"], "displayMode": "table", "placement": "right", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "asc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "musinsa-postgres" },
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  r.collected_at AS time,\n  b.name AS metric,\n  r.rank AS value\nFROM brand_rankings r\nJOIN brands b ON b.id = r.brand_id\nWHERE $__timeFilter(r.collected_at)\n  AND b.is_tracked = TRUE\nORDER BY time",
+          "refId": "A",
+          "sql": { "columns": [], "groupBy": [], "limit": 50 }
+        }
+      ],
+      "title": "순위 변동 추이 (tracked 브랜드)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "musinsa-postgres" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "팬수",
+            "axisPlacement": "auto",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "auto",
+            "spanNulls": true,
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "off" }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "green", "value": null }]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 10, "w": 12, "x": 12, "y": 8 },
+      "id": 3,
+      "options": {
+        "legend": { "calcs": ["last"], "displayMode": "table", "placement": "right", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "musinsa-postgres" },
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  f.collected_at AS time,\n  b.name AS metric,\n  f.fan_count AS value\nFROM brand_fans f\nJOIN brands b ON b.id = f.brand_id\nWHERE $__timeFilter(f.collected_at)\n  AND b.is_tracked = TRUE\nORDER BY time",
+          "refId": "A",
+          "sql": { "columns": [], "groupBy": [], "limit": 50 }
+        }
+      ],
+      "title": "팬수 성장 추이 (tracked 브랜드)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "musinsa-postgres" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "blue", "value": null },
+              { "color": "yellow", "value": 30 },
+              { "color": "red", "value": 60 }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 18 },
+      "id": 4,
+      "options": {
+        "barRadius": 0.05,
+        "barWidth": 0.7,
+        "fillOpacity": 80,
+        "gradientMode": "none",
+        "groupWidth": 0.7,
+        "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": false },
+        "orientation": "horizontal",
+        "showValue": "always",
+        "stacking": "none",
+        "tooltip": { "mode": "single", "sort": "none" },
+        "xField": "브랜드",
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 0
+      },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "musinsa-postgres" },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  b.name AS \"브랜드\",\n  ROUND(\n    COUNT(*) FILTER (WHERE np.is_sold_out)::numeric\n    / NULLIF(COUNT(*), 0) * 100,\n  1) AS \"품절률\"\nFROM new_products np\nJOIN brands b ON b.id = np.brand_id\nWHERE np.first_seen_at > NOW() - INTERVAL '14 days'\nGROUP BY b.name\nHAVING COUNT(*) >= 3\nORDER BY \"품절률\" DESC\nLIMIT 20",
+          "refId": "A",
+          "sql": { "columns": [], "groupBy": [], "limit": 50 }
+        }
+      ],
+      "title": "신상품 품절률 (최근 14일, 상품 3개 이상)",
+      "type": "barchart"
+    }
+  ],
+  "refresh": "5m",
+  "schemaVersion": 39,
+  "tags": ["musinsa"],
+  "templating": { "list": [] },
+  "time": { "from": "now-7d", "to": "now" },
+  "timepicker": {},
+  "timezone": "Asia/Seoul",
+  "title": "Musinsa Trends",
+  "uid": "musinsa-trends",
+  "version": 1
+}
