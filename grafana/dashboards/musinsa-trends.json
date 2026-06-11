@@ -231,16 +231,381 @@
       ],
       "title": "신상품 품절률 (최근 14일, 상품 3개 이상)",
       "type": "barchart"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 26 },
+      "id": 5,
+      "title": "점수 근거 비교 (전체 브랜드)",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "musinsa-postgres" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "custom": {
+            "align": "auto",
+            "cellOptions": { "type": "auto" },
+            "inspect": false
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "transparent", "value": null }]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "브랜드" },
+            "properties": [
+              { "id": "custom.align", "value": "left" },
+              { "id": "custom.width", "value": 180 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "순위변동" },
+            "properties": [
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    { "color": "red", "value": null },
+                    { "color": "transparent", "value": 0 },
+                    { "color": "green", "value": 1 }
+                  ]
+                }
+              },
+              { "id": "custom.cellOptions", "value": { "type": "color-text" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "현재팬수" },
+            "properties": [
+              { "id": "unit", "value": "short" }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "14일팬증가(%)" },
+            "properties": [
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    { "color": "red", "value": null },
+                    { "color": "transparent", "value": 0 },
+                    { "color": "green", "value": 0.01 }
+                  ]
+                }
+              },
+              { "id": "custom.cellOptions", "value": { "type": "color-text" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "품절률(%)" },
+            "properties": [
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    { "color": "blue", "value": null },
+                    { "color": "yellow", "value": 30 },
+                    { "color": "red", "value": 60 }
+                  ]
+                }
+              },
+              { "id": "custom.cellOptions", "value": { "type": "color-background" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "종합점수" },
+            "properties": [
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    { "color": "transparent", "value": null },
+                    { "color": "yellow", "value": 50 },
+                    { "color": "green", "value": 75 }
+                  ]
+                }
+              },
+              { "id": "custom.cellOptions", "value": { "type": "color-background" } },
+              { "id": "custom.width", "value": 100 }
+            ]
+          }
+        ]
+      },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 27 },
+      "id": 6,
+      "options": {
+        "cellHeight": "sm",
+        "footer": { "countRows": false, "fields": "", "reducer": ["sum"], "show": false },
+        "showHeader": true,
+        "sortBy": [{ "desc": true, "displayName": "종합점수" }]
+      },
+      "pluginVersion": "11.1.0",
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "musinsa-postgres" },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "WITH latest_score AS (\n  SELECT brand_id, total_score\n  FROM brand_scores\n  WHERE scored_at = (SELECT MAX(scored_at) FROM brand_scores)\n),\ncur_rank AS (\n  SELECT DISTINCT ON (brand_id) brand_id, rank\n  FROM brand_rankings ORDER BY brand_id, collected_at DESC\n),\nold_rank AS (\n  SELECT DISTINCT ON (brand_id) brand_id, rank AS rank_7d\n  FROM brand_rankings\n  WHERE collected_at <= NOW() - INTERVAL '7 days'\n  ORDER BY brand_id, collected_at DESC\n),\ncur_fan AS (\n  SELECT DISTINCT ON (brand_id) brand_id, fan_count\n  FROM brand_fans ORDER BY brand_id, collected_at DESC\n),\nold_fan AS (\n  SELECT DISTINCT ON (brand_id) brand_id, fan_count AS fan_14d\n  FROM brand_fans\n  WHERE collected_at <= NOW() - INTERVAL '14 days'\n  ORDER BY brand_id, collected_at DESC\n),\nsoldout AS (\n  SELECT brand_id,\n    COUNT(*) AS total, COUNT(*) FILTER (WHERE is_sold_out) AS sold\n  FROM (\n    SELECT DISTINCT ON (product_id) brand_id, product_id, is_sold_out\n    FROM new_products\n    WHERE first_seen_at > NOW() - INTERVAL '14 days'\n    ORDER BY product_id, first_seen_at DESC\n  ) p\n  GROUP BY brand_id\n)\nSELECT\n  b.name                                                          AS \"브랜드\",\n  cr.rank                                                         AS \"현재순위\",\n  or_.rank_7d                                                     AS \"7일전순위\",\n  (or_.rank_7d - cr.rank)                                         AS \"순위변동\",\n  cf.fan_count                                                    AS \"현재팬수\",\n  ROUND((cf.fan_count - of_.fan_14d)::numeric\n        / NULLIF(of_.fan_14d, 0) * 100, 1)                       AS \"14일팬증가(%)\",\n  COALESCE(s.total, 0)                                            AS \"신상품수(14일)\",\n  COALESCE(s.sold, 0)                                             AS \"품절수\",\n  ROUND(COALESCE(s.sold,0)::numeric / NULLIF(s.total,0) * 100,1) AS \"품절률(%)\",\n  ROUND(ls.total_score, 1)                                        AS \"종합점수\"\nFROM latest_score ls\nJOIN brands b          ON b.id = ls.brand_id\nLEFT JOIN cur_rank cr  ON cr.brand_id = ls.brand_id\nLEFT JOIN old_rank or_ ON or_.brand_id = ls.brand_id\nLEFT JOIN cur_fan cf   ON cf.brand_id = ls.brand_id\nLEFT JOIN old_fan of_  ON of_.brand_id = ls.brand_id\nLEFT JOIN soldout s    ON s.brand_id = ls.brand_id\nORDER BY ls.total_score DESC",
+          "refId": "A",
+          "sql": { "columns": [], "groupBy": [], "limit": 50 }
+        }
+      ],
+      "title": "브랜드별 지표 비교",
+      "type": "table"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 37 },
+      "id": 7,
+      "title": "드릴다운: $brand 상세 분석",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "musinsa-postgres" },
+      "description": "순위는 낮을수록 상위권. 선이 올라갈수록 순위 상승 (Y축 반전).",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "순위 (낮을수록 상위)",
+            "axisPlacement": "auto",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "reverse": true,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "auto",
+            "spanNulls": true,
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "off" }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "green", "value": null }]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 10, "w": 12, "x": 0, "y": 38 },
+      "id": 8,
+      "options": {
+        "legend": { "calcs": ["last"], "displayMode": "list", "placement": "bottom", "showLegend": false },
+        "tooltip": { "mode": "single", "sort": "none" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "musinsa-postgres" },
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  r.collected_at AS time,\n  b.name AS metric,\n  r.rank AS value\nFROM brand_rankings r\nJOIN brands b ON b.id = r.brand_id\nWHERE $__timeFilter(r.collected_at)\n  AND b.name = '${brand}'\nORDER BY time",
+          "refId": "A",
+          "sql": { "columns": [], "groupBy": [], "limit": 50 }
+        }
+      ],
+      "title": "${brand} - 순위 추이",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "musinsa-postgres" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "팬수",
+            "axisPlacement": "auto",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "auto",
+            "spanNulls": true,
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "off" }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "green", "value": null }]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 10, "w": 12, "x": 12, "y": 38 },
+      "id": 9,
+      "options": {
+        "legend": { "calcs": ["last"], "displayMode": "list", "placement": "bottom", "showLegend": false },
+        "tooltip": { "mode": "single", "sort": "none" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "musinsa-postgres" },
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  f.collected_at AS time,\n  b.name AS metric,\n  f.fan_count AS value\nFROM brand_fans f\nJOIN brands b ON b.id = f.brand_id\nWHERE $__timeFilter(f.collected_at)\n  AND b.name = '${brand}'\nORDER BY time",
+          "refId": "A",
+          "sql": { "columns": [], "groupBy": [], "limit": 50 }
+        }
+      ],
+      "title": "${brand} - 팬수 추이",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "musinsa-postgres" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "custom": {
+            "align": "left",
+            "cellOptions": { "type": "auto" },
+            "inspect": false
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "transparent", "value": null }]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "첫발견" },
+            "properties": [
+              { "id": "unit", "value": "dateTimeAsLocal" },
+              { "id": "custom.width", "value": 160 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "품절시각" },
+            "properties": [
+              { "id": "unit", "value": "dateTimeAsLocal" },
+              { "id": "custom.width", "value": 160 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "판매가" },
+            "properties": [
+              { "id": "unit", "value": "currencyKRW" },
+              { "id": "custom.align", "value": "right" },
+              { "id": "custom.width", "value": 110 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "상태" },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "options": {
+                      "판매중": { "color": "green", "index": 0, "text": "판매중" },
+                      "품절": { "color": "red", "index": 1, "text": "품절" }
+                    },
+                    "type": "value"
+                  }
+                ]
+              },
+              { "id": "custom.cellOptions", "value": { "type": "color-text" } },
+              { "id": "custom.width", "value": 80 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "품절소요(시간)" },
+            "properties": [
+              { "id": "unit", "value": "h" },
+              { "id": "custom.align", "value": "right" },
+              { "id": "custom.width", "value": 120 },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    { "color": "red", "value": null },
+                    { "color": "yellow", "value": 24 },
+                    { "color": "blue", "value": 72 }
+                  ]
+                }
+              },
+              { "id": "custom.cellOptions", "value": { "type": "color-text" } }
+            ]
+          }
+        ]
+      },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 48 },
+      "id": 10,
+      "options": {
+        "cellHeight": "sm",
+        "footer": { "countRows": false, "fields": "", "reducer": ["sum"], "show": false },
+        "showHeader": true,
+        "sortBy": []
+      },
+      "pluginVersion": "11.1.0",
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "musinsa-postgres" },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  np.product_name                                                       AS \"상품명\",\n  np.final_price                                                        AS \"판매가\",\n  np.first_seen_at                                                      AS \"첫발견\",\n  np.sold_out_at                                                        AS \"품절시각\",\n  CASE WHEN np.is_sold_out THEN '품절' ELSE '판매중' END                 AS \"상태\",\n  CASE WHEN np.is_sold_out AND np.sold_out_at IS NOT NULL\n    THEN ROUND(EXTRACT(EPOCH FROM (np.sold_out_at - np.first_seen_at)) / 3600.0, 1)\n  END                                                                   AS \"품절소요(시간)\"\nFROM (\n  SELECT DISTINCT ON (product_id)\n    brand_id, product_name, final_price, first_seen_at, sold_out_at, is_sold_out\n  FROM new_products\n  WHERE first_seen_at > NOW() - INTERVAL '14 days'\n  ORDER BY product_id, first_seen_at DESC\n) np\nJOIN brands b ON b.id = np.brand_id\nWHERE b.name = '${brand}'\nORDER BY np.first_seen_at DESC",
+          "refId": "A",
+          "sql": { "columns": [], "groupBy": [], "limit": 50 }
+        }
+      ],
+      "title": "${brand} - 신상품 품절 상세 (최근 14일)",
+      "type": "table"
     }
   ],
   "refresh": "5m",
   "schemaVersion": 39,
   "tags": ["musinsa"],
-  "templating": { "list": [] },
+  "templating": {
+    "list": [
+      {
+        "current": {},
+        "datasource": { "type": "postgres", "uid": "musinsa-postgres" },
+        "definition": "SELECT b.name FROM brands b WHERE b.id IN (SELECT brand_id FROM brand_scores WHERE scored_at = (SELECT MAX(scored_at) FROM brand_scores)) ORDER BY b.name",
+        "hide": 0,
+        "includeAll": false,
+        "label": "브랜드 선택",
+        "multi": false,
+        "name": "brand",
+        "options": [],
+        "query": "SELECT b.name FROM brands b WHERE b.id IN (SELECT brand_id FROM brand_scores WHERE scored_at = (SELECT MAX(scored_at) FROM brand_scores)) ORDER BY b.name",
+        "refresh": 2,
+        "regex": "",
+        "sort": 1,
+        "type": "query"
+      }
+    ]
+  },
   "time": { "from": "now-7d", "to": "now" },
   "timepicker": {},
   "timezone": "Asia/Seoul",
   "title": "Musinsa Trends",
   "uid": "musinsa-trends",
-  "version": 1
+  "version": 2
 }
