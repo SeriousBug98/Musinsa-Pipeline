@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>브랜드 트래킹 관리</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f5f5f5; color: #111; }
+    header { background: #111; color: #fff; padding: 16px 24px; display: flex; align-items: center; gap: 12px; }
+    header h1 { font-size: 18px; font-weight: 600; }
+    header span { font-size: 13px; color: #aaa; }
+    .toolbar { padding: 12px 24px; display: flex; gap: 8px; align-items: center; }
+    .toolbar input { padding: 6px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; width: 220px; }
+    .toolbar label { font-size: 13px; color: #555; display: flex; align-items: center; gap: 6px; cursor: pointer; }
+    table { width: 100%; border-collapse: collapse; background: #fff; }
+    th { background: #111; color: #fff; text-align: left; padding: 10px 16px; font-size: 13px; font-weight: 500; position: sticky; top: 0; }
+    td { padding: 10px 16px; font-size: 14px; border-bottom: 1px solid #eee; vertical-align: middle; }
+    tr.tracked { background: #f0fff4; }
+    tr:hover { background: #fafafa; }
+    tr.tracked:hover { background: #e6ffed; }
+    .score { font-weight: 600; font-variant-numeric: tabular-nums; }
+    .score.high { color: #16a34a; }
+    .score.mid { color: #ca8a04; }
+    .score.none { color: #aaa; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+    .badge.on { background: #dcfce7; color: #16a34a; }
+    .badge.off { background: #f3f4f6; color: #6b7280; }
+    .actions { display: flex; gap: 6px; }
+    button { padding: 5px 12px; border-radius: 6px; font-size: 13px; cursor: pointer; border: 1px solid transparent; transition: opacity 0.1s; }
+    button:hover { opacity: 0.8; }
+    .btn-musinsa { background: #fff; border-color: #ddd; color: #333; }
+    .btn-track { background: #111; color: #fff; }
+    .btn-untrack { background: #fff; border-color: #111; color: #111; }
+    .empty { text-align: center; padding: 60px; color: #aaa; font-size: 14px; }
+    #count { font-size: 13px; color: #555; margin-left: auto; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>브랜드 트래킹 관리</h1>
+    <span>hype_picker</span>
+  </header>
+  <div class="toolbar">
+    <input type="text" id="search" placeholder="브랜드 검색..." oninput="render()">
+    <label>
+      <input type="checkbox" id="only-tracked" onchange="render()">
+      Tracked만 보기
+    </label>
+    <span id="count"></span>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th style="width:200px">브랜드</th>
+        <th style="width:80px">종합점수</th>
+        <th style="width:90px">상태</th>
+        <th>액션</th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+
+  <script>
+    let brands = [];
+
+    async function load() {
+      const res = await fetch('/brands');
+      brands = await res.json();
+      render();
+    }
+
+    function render() {
+      const q = document.getElementById('search').value.trim().toLowerCase();
+      const onlyTracked = document.getElementById('only-tracked').checked;
+      const tbody = document.getElementById('tbody');
+
+      let filtered = brands;
+      if (q) filtered = filtered.filter(b => b.name.toLowerCase().includes(q) || (b.musinsaBrandId || '').toLowerCase().includes(q));
+      if (onlyTracked) filtered = filtered.filter(b => b.isTracked);
+
+      document.getElementById('count').textContent = `${filtered.length}개 브랜드`;
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="empty">검색 결과가 없습니다.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = filtered.map(b => {
+        const score = b.totalScore != null ? Number(b.totalScore).toFixed(1) : null;
+        const scoreClass = score == null ? 'none' : score >= 75 ? 'high' : score >= 50 ? 'mid' : 'none';
+        const scoreText = score ?? '—';
+        const tracked = b.isTracked;
+        const link = b.linkUrl || `https://www.musinsa.com/brand/${b.musinsaBrandId}`;
+        return `
+          <tr class="${tracked ? 'tracked' : ''}" id="row-${b.id}">
+            <td><strong>${b.name}</strong><br><span style="font-size:12px;color:#888">${b.musinsaBrandId}</span></td>
+            <td><span class="score ${scoreClass}">${scoreText}</span></td>
+            <td><span class="badge ${tracked ? 'on' : 'off'}">${tracked ? 'Tracked' : '미추적'}</span></td>
+            <td class="actions">
+              <button class="btn-musinsa" onclick="window.open('${link}', '_blank')">무신사 보기</button>
+              ${tracked
+                ? `<button class="btn-untrack" onclick="untrack(${b.id})">해제</button>`
+                : `<button class="btn-track" onclick="track(${b.id})">추적 추가</button>`
+              }
+            </td>
+          </tr>`;
+      }).join('');
+    }
+
+    async function track(id) {
+      await fetch(`/brands/${id}/track`, { method: 'POST' });
+      const brand = brands.find(b => b.id === id);
+      if (brand) brand.isTracked = true;
+      render();
+    }
+
+    async function untrack(id) {
+      await fetch(`/brands/${id}/track`, { method: 'DELETE' });
+      const brand = brands.find(b => b.id === id);
+      if (brand) brand.isTracked = false;
+      render();
+    }
+
+    load();
+  </script>
+</body>
+</html>

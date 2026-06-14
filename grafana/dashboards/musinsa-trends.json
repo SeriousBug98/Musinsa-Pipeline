@@ -42,7 +42,23 @@
             "matcher": { "id": "byName", "options": "브랜드" },
             "properties": [
               { "id": "custom.cellOptions", "value": { "type": "auto" } },
-              { "id": "custom.width", "value": 200 }
+              { "id": "custom.width", "value": 200 },
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "무신사에서 보기",
+                    "url": "${__data.fields[\"링크\"]}",
+                    "targetBlank": true
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "링크" },
+            "properties": [
+              { "id": "custom.hidden", "value": true }
             ]
           },
           {
@@ -69,7 +85,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT DISTINCT ON (bs.brand_id)\n  b.name AS \"브랜드\",\n  ROUND(bs.total_score, 1) AS \"종합\",\n  ROUND(bs.rank_change_score, 1) AS \"랭킹\",\n  ROUND(bs.fan_growth_score, 1) AS \"팬\",\n  ROUND(bs.soldout_speed_score, 1) AS \"품절\",\n  bs.scored_at AS \"기준시각\"\nFROM brand_scores bs\nJOIN brands b ON b.id = bs.brand_id\nWHERE bs.scored_at = (SELECT MAX(scored_at) FROM brand_scores)\nORDER BY bs.brand_id, bs.total_score DESC",
+          "rawSql": "SELECT DISTINCT ON (bs.brand_id)\n  b.name AS \"브랜드\",\n  b.link_url AS \"링크\",\n  ROUND(bs.total_score, 1) AS \"종합\",\n  ROUND(bs.rank_change_score, 1) AS \"랭킹\",\n  ROUND(bs.fan_growth_score, 1) AS \"팬\",\n  ROUND(bs.soldout_speed_score, 1) AS \"품절\",\n  bs.scored_at AS \"기준시각\"\nFROM brand_scores bs\nJOIN brands b ON b.id = bs.brand_id\nWHERE bs.scored_at = (SELECT MAX(scored_at) FROM brand_scores)\nORDER BY bs.brand_id, bs.total_score DESC",
           "refId": "A",
           "sql": { "columns": [], "groupBy": [], "limit": 50 }
         }
