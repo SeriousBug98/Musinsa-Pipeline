@@ -593,6 +593,15 @@
       ],
       "title": "${brand} - 신상품 품절 상세 (최근 14일)",
       "type": "table"
+    },
+    {
+      "gridPos": { "h": 24, "w": 24, "x": 0, "y": 58 },
+      "id": 11,
+      "options": {
+        "url": "http://localhost:8080/track.html"
+      },
+      "title": "브랜드 트래킹 관리",
+      "type": "iframe"
     }
   ],
   "refresh": "5m",
