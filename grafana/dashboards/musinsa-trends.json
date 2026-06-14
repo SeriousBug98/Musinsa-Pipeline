@@ -598,10 +598,11 @@
       "gridPos": { "h": 24, "w": 24, "x": 0, "y": 58 },
       "id": 11,
       "options": {
-        "url": "http://localhost:8080/track.html"
+        "content": "<iframe src=\"http://localhost:8080/track.html\" width=\"100%\" height=\"100%\" style=\"border:none;\"></iframe>",
+        "mode": "html"
       },
       "title": "브랜드 트래킹 관리",
-      "type": "iframe"
+      "type": "text"
     }
   ],
   "refresh": "5m",
