@@ -16,7 +16,16 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": null,
-  "links": [],
+  "links": [
+    {
+      "title": "브랜드 트래킹 관리",
+      "url": "http://localhost:8080/track.html",
+      "type": "link",
+      "targetBlank": true,
+      "icon": "external link",
+      "tooltip": "tracked 브랜드 추가/해제"
+    }
+  ],
   "panels": [
     {
       "datasource": { "type": "postgres", "uid": "musinsa-postgres" },
@@ -593,16 +602,6 @@
       ],
       "title": "${brand} - 신상품 품절 상세 (최근 14일)",
       "type": "table"
-    },
-    {
-      "gridPos": { "h": 24, "w": 24, "x": 0, "y": 58 },
-      "id": 11,
-      "options": {
-        "content": "<iframe src=\"http://localhost:8080/track.html\" width=\"100%\" height=\"100%\" style=\"border:none;\"></iframe>",
-        "mode": "html"
-      },
-      "title": "브랜드 트래킹 관리",
-      "type": "text"
     }
   ],
   "refresh": "5m",
