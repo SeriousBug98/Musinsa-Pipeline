@@ -46,7 +46,8 @@ processor/bin/
 CLAUDE.md
 .claude/
 
-etc/
-!etc/oci/
-!etc/oci/create_instance.sh
-!etc/oci/oci.env.example
+etc/instagram/
+etc/문서/
+etc/보안/
+etc/oci/oci.env
+etc/oci/oci_create.log
