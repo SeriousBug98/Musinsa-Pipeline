@@ -47,3 +47,6 @@ CLAUDE.md
 .claude/
 
 etc/
+!etc/oci/
+!etc/oci/create_instance.sh
+!etc/oci/oci.env.example
