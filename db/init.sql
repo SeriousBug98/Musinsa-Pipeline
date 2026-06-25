@@ -38,16 +38,21 @@ CREATE INDEX idx_brand_fans_collected_at ON brand_fans(collected_at);
 
 -- 신상품 품절 현황
 CREATE TABLE new_products (
-    id            BIGSERIAL PRIMARY KEY,
-    brand_id      BIGINT NOT NULL REFERENCES brands(id),
-    product_id    VARCHAR(100) NOT NULL,
-    product_name  VARCHAR(300) NOT NULL,
-    category_code VARCHAR(10) NOT NULL,
-    price         INTEGER,
-    final_price   INTEGER,
-    is_sold_out   BOOLEAN NOT NULL DEFAULT FALSE,
-    first_seen_at TIMESTAMP NOT NULL,
-    sold_out_at   TIMESTAMP,
+    id                  BIGSERIAL PRIMARY KEY,
+    brand_id            BIGINT NOT NULL REFERENCES brands(id),
+    product_id          VARCHAR(100) NOT NULL,
+    product_name        VARCHAR(300) NOT NULL,
+    category_code       VARCHAR(10) NOT NULL,
+    price               INTEGER,
+    final_price         INTEGER,
+    discount_rate       INTEGER,
+    is_sold_out         BOOLEAN NOT NULL DEFAULT FALSE,
+    first_seen_at       TIMESTAMP NOT NULL,
+    sold_out_at         TIMESTAMP,
+    review_count        INTEGER,
+    first_review_count  INTEGER,
+    review_score        DECIMAL(3,1),
+    thumbnail_url       VARCHAR(500),
     UNIQUE(product_id, category_code)
 );
 
