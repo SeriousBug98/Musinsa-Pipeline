@@ -10,6 +10,7 @@ from collectors.brand_list_collector import collect_brand_list
 from collectors.fan_collector import collect_fans
 from collectors.product_collector import collect_new_products
 from collectors.ranking_collector import collect_rankings
+from collectors.snap_collector import collect_snap_mentions
 
 
 LOG_DIR = Path(__file__).resolve().parent / "logs"
@@ -63,6 +64,13 @@ def job_products() -> None:
         logging.exception("products job failed")
 
 
+def job_snaps() -> None:
+    try:
+        collect_snap_mentions()
+    except Exception:
+        logging.exception("snaps job failed")
+
+
 def main() -> None:
     setup_logging()
     logger = logging.getLogger(__name__)
@@ -96,6 +104,14 @@ def main() -> None:
         trigger=CronTrigger(hour="0,6,12,18"),
         id="products",
         name="신상품 품절 현황 수집",
+        max_instances=1,
+    )
+    # DAILY 랭킹은 정오(12:00) 갱신 → 13시에 1회 수집
+    scheduler.add_job(
+        job_snaps,
+        trigger=CronTrigger(hour=13),
+        id="snaps",
+        name="스냅 STREET 버즈 수집",
         max_instances=1,
     )
 
