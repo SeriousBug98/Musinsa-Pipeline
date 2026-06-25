@@ -60,6 +60,29 @@ CREATE INDEX idx_new_products_brand_id ON new_products(brand_id);
 CREATE INDEX idx_new_products_first_seen_at ON new_products(first_seen_at);
 CREATE INDEX idx_new_products_is_sold_out ON new_products(is_sold_out);
 
+-- 스냅 STREET 랭킹 UGC 버즈 스냅샷 (append-only)
+-- brand_id 가 NULL 인 행 = 우리 brands 테이블에 없는 신흥 브랜드 추적 후보
+CREATE TABLE brand_snap_mentions (
+    id              BIGSERIAL PRIMARY KEY,
+    brand_id        BIGINT REFERENCES brands(id),          -- NULL 허용: 미매칭 신흥 브랜드
+    brand_name      VARCHAR(200) NOT NULL,                 -- goods API 의 brandName(한글). 미매칭 식별 키
+    mention_count   INTEGER NOT NULL,                      -- 이 run 에서 이 브랜드를 태그한 스냅 수
+    best_rank       INTEGER NOT NULL,                      -- 등장 스냅 중 최상위(최소) 랭크
+    snap_like_sum   INTEGER,                               -- 등장 스냅 likeCount 합 (보조 지표)
+    snap_view_sum   INTEGER,                               -- 등장 스냅 viewCount 합 (보조 지표)
+    top_snap_id     VARCHAR(100),                          -- best_rank 스냅 id (인스타 이미지 앵커용)
+    period          VARCHAR(10) NOT NULL DEFAULT 'DAILY',  -- DAILY | WEEKLY (향후 확장)
+    collected_at    TIMESTAMP NOT NULL
+);
+
+CREATE INDEX idx_brand_snap_mentions_brand_id    ON brand_snap_mentions(brand_id);
+CREATE INDEX idx_brand_snap_mentions_collected_at ON brand_snap_mentions(collected_at);
+CREATE INDEX idx_brand_snap_mentions_brand_name  ON brand_snap_mentions(brand_name);
+-- 신흥 후보(미매칭) 조회 최적화
+CREATE INDEX idx_brand_snap_mentions_unmatched
+    ON brand_snap_mentions(mention_count DESC, best_rank)
+    WHERE brand_id IS NULL;
+
 -- 분석 결과 (Spring Boot Processor가 저장)
 CREATE TABLE brand_scores (
     id                  BIGSERIAL PRIMARY KEY,
