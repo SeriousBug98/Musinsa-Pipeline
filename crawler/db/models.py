@@ -79,9 +79,14 @@ class NewProduct(Base):
     category_code: Mapped[str] = mapped_column(String(10), nullable=False)
     price: Mapped[int | None] = mapped_column(Integer)
     final_price: Mapped[int | None] = mapped_column(Integer)
+    discount_rate: Mapped[int | None] = mapped_column(Integer)
     is_sold_out: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     first_seen_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     sold_out_at: Mapped[datetime | None] = mapped_column(DateTime)
+    review_count: Mapped[int | None] = mapped_column(Integer)
+    first_review_count: Mapped[int | None] = mapped_column(Integer)
+    review_score: Mapped[float | None] = mapped_column(Numeric(3, 1))
+    thumbnail_url: Mapped[str | None] = mapped_column(String(500))
 
     brand: Mapped["Brand"] = relationship(back_populates="new_products")
 
