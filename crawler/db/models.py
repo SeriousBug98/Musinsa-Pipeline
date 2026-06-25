@@ -91,6 +91,21 @@ class NewProduct(Base):
     brand: Mapped["Brand"] = relationship(back_populates="new_products")
 
 
+class BrandSnapMention(Base):
+    __tablename__ = "brand_snap_mentions"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    brand_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("brands.id"))
+    brand_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    mention_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    best_rank: Mapped[int] = mapped_column(Integer, nullable=False)
+    snap_like_sum: Mapped[int | None] = mapped_column(Integer)
+    snap_view_sum: Mapped[int | None] = mapped_column(Integer)
+    top_snap_id: Mapped[str | None] = mapped_column(String(100))
+    period: Mapped[str] = mapped_column(String(10), nullable=False, default="DAILY")
+    collected_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+
 class BrandScore(Base):
     """Read-only model. Written by the Spring Boot analyzer."""
 
