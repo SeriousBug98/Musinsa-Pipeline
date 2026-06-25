@@ -129,8 +129,20 @@ def _to_int(v) -> int | None:
         return None
 
 
+def _to_float(v) -> float | None:
+    if v in (None, ""):
+        return None
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return None
+
+
 def _normalize(entry: dict, category_code: str) -> dict | None:
     """brand 식별은 호출부에서 결정 (brand=mb_id 로 요청) 하므로 여기선 미관여."""
+    if entry.get("isAd"):
+        return None
+
     pid = _pick(entry, "goodsNo", "productId", "id", "goodsId")
     pname = _pick(entry, "goodsName", "productName", "name")
     if not pid or not pname:
@@ -152,7 +164,11 @@ def _normalize(entry: dict, category_code: str) -> dict | None:
         "category_code": category_code,
         "price": price,
         "final_price": final_price,
+        "discount_rate": _to_int(entry.get("saleRate")),
         "is_sold_out": is_sold_out,
+        "review_count": _to_int(entry.get("reviewCount")),
+        "review_score": _to_float(entry.get("reviewScore")),
+        "thumbnail_url": entry.get("thumbnail") or None,
     }
 
 
@@ -205,6 +221,7 @@ def collect_new_products() -> int:
                             "brand_id": pk,
                             "first_seen_at": now,
                             "sold_out_at": now if norm["is_sold_out"] else None,
+                            "first_review_count": norm["review_count"],
                             **norm,
                         }
                     )
@@ -245,6 +262,7 @@ def collect_new_products() -> int:
             "product_name": stmt.excluded.product_name,
             "price": stmt.excluded.price,
             "final_price": stmt.excluded.final_price,
+            "discount_rate": stmt.excluded.discount_rate,
             "is_sold_out": stmt.excluded.is_sold_out,
             "sold_out_at": case(
                 (
@@ -257,7 +275,10 @@ def collect_new_products() -> int:
                 (stmt.excluded.is_sold_out.is_(False), None),
                 else_=NewProduct.sold_out_at,
             ),
-            # brand_id, first_seen_at 은 보존
+            "review_count": stmt.excluded.review_count,
+            "review_score": stmt.excluded.review_score,
+            "thumbnail_url": stmt.excluded.thumbnail_url,
+            # brand_id, first_seen_at, first_review_count 은 보존
         },
     )
 
