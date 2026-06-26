@@ -90,7 +90,8 @@ CREATE TABLE brand_scores (
     rank_change_score   DECIMAL(5,2) NOT NULL,
     fan_growth_score    DECIMAL(5,2) NOT NULL,
     soldout_speed_score DECIMAL(5,2) NOT NULL,
-    snap_buzz_score     DECIMAL(5,2) NOT NULL DEFAULT 0.00,   -- 스냅 UGC 버즈 상승 추세 (0채움 WLS slope)
+    snap_buzz_score         DECIMAL(5,2) NOT NULL DEFAULT 0.00,   -- 스냅 UGC 버즈 상승 추세 (0채움 WLS slope)
+    review_velocity_score   DECIMAL(5,2) NOT NULL DEFAULT 0.00,   -- 리뷰 증가 속도 (구매량 프록시, 적립금 인센티브로 noisy)
     total_score         DECIMAL(5,2) NOT NULL,
     scored_at           TIMESTAMP NOT NULL
 );
