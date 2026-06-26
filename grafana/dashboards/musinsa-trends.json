@@ -71,6 +71,42 @@
             ]
           },
           {
+            "matcher": { "id": "byName", "options": "스냅" },
+            "properties": [
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    { "color": "transparent", "value": null },
+                    { "color": "yellow", "value": 50 },
+                    { "color": "green", "value": 75 }
+                  ]
+                }
+              },
+              { "id": "custom.cellOptions", "value": { "type": "color-background" } },
+              { "id": "custom.width", "value": 80 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "리뷰속도" },
+            "properties": [
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    { "color": "transparent", "value": null },
+                    { "color": "yellow", "value": 50 },
+                    { "color": "green", "value": 75 }
+                  ]
+                }
+              },
+              { "id": "custom.cellOptions", "value": { "type": "color-background" } },
+              { "id": "custom.width", "value": 80 }
+            ]
+          },
+          {
             "matcher": { "id": "byName", "options": "기준시각" },
             "properties": [
               { "id": "custom.cellOptions", "value": { "type": "auto" } },
@@ -94,7 +130,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT DISTINCT ON (bs.brand_id)\n  b.name AS \"브랜드\",\n  b.link_url AS \"링크\",\n  ROUND(bs.total_score, 1) AS \"종합\",\n  ROUND(bs.rank_change_score, 1) AS \"랭킹\",\n  ROUND(bs.fan_growth_score, 1) AS \"팬\",\n  ROUND(bs.soldout_speed_score, 1) AS \"품절\",\n  bs.scored_at AS \"기준시각\"\nFROM brand_scores bs\nJOIN brands b ON b.id = bs.brand_id\nWHERE bs.scored_at = (SELECT MAX(scored_at) FROM brand_scores)\nORDER BY bs.brand_id, bs.total_score DESC",
+          "rawSql": "SELECT DISTINCT ON (bs.brand_id)\n  b.name AS \"브랜드\",\n  b.link_url AS \"링크\",\n  ROUND(bs.total_score, 1) AS \"종합\",\n  ROUND(bs.rank_change_score, 1) AS \"랭킹\",\n  ROUND(bs.fan_growth_score, 1) AS \"팬\",\n  ROUND(bs.soldout_speed_score, 1) AS \"품절\",\n  ROUND(bs.snap_buzz_score, 1) AS \"스냅\",\n  ROUND(bs.review_velocity_score, 1) AS \"리뷰속도\",\n  bs.scored_at AS \"기준시각\"\nFROM brand_scores bs\nJOIN brands b ON b.id = bs.brand_id\nWHERE bs.scored_at = (SELECT MAX(scored_at) FROM brand_scores)\nORDER BY bs.brand_id, bs.total_score DESC",
           "refId": "A",
           "sql": { "columns": [], "groupBy": [], "limit": 50 }
         }
@@ -345,6 +381,30 @@
             ]
           },
           {
+            "matcher": { "id": "byName", "options": "스냅언급(14일)" },
+            "properties": [
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    { "color": "transparent", "value": null },
+                    { "color": "blue", "value": 1 },
+                    { "color": "green", "value": 10 }
+                  ]
+                }
+              },
+              { "id": "custom.cellOptions", "value": { "type": "color-text" } },
+              { "id": "custom.width", "value": 110 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "스냅최고순위" },
+            "properties": [
+              { "id": "custom.width", "value": 100 }
+            ]
+          },
+          {
             "matcher": { "id": "byName", "options": "종합점수" },
             "properties": [
               {
@@ -379,7 +439,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "WITH latest_score AS (\n  SELECT brand_id, total_score\n  FROM brand_scores\n  WHERE scored_at = (SELECT MAX(scored_at) FROM brand_scores)\n),\ncur_rank AS (\n  SELECT DISTINCT ON (brand_id) brand_id, rank\n  FROM brand_rankings ORDER BY brand_id, collected_at DESC\n),\nold_rank AS (\n  SELECT DISTINCT ON (brand_id) brand_id, rank AS rank_7d\n  FROM brand_rankings\n  WHERE collected_at <= NOW() - INTERVAL '7 days'\n  ORDER BY brand_id, collected_at DESC\n),\ncur_fan AS (\n  SELECT DISTINCT ON (brand_id) brand_id, fan_count\n  FROM brand_fans ORDER BY brand_id, collected_at DESC\n),\nold_fan AS (\n  SELECT DISTINCT ON (brand_id) brand_id, fan_count AS fan_14d\n  FROM brand_fans\n  WHERE collected_at <= NOW() - INTERVAL '14 days'\n  ORDER BY brand_id, collected_at DESC\n),\nsoldout AS (\n  SELECT brand_id,\n    COUNT(*) AS total, COUNT(*) FILTER (WHERE is_sold_out) AS sold\n  FROM (\n    SELECT DISTINCT ON (product_id) brand_id, product_id, is_sold_out\n    FROM new_products\n    WHERE first_seen_at > NOW() - INTERVAL '14 days'\n    ORDER BY product_id, first_seen_at DESC\n  ) p\n  GROUP BY brand_id\n)\nSELECT\n  b.name                                                          AS \"브랜드\",\n  cr.rank                                                         AS \"현재순위\",\n  or_.rank_7d                                                     AS \"7일전순위\",\n  (or_.rank_7d - cr.rank)                                         AS \"순위변동\",\n  cf.fan_count                                                    AS \"현재팬수\",\n  ROUND((cf.fan_count - of_.fan_14d)::numeric\n        / NULLIF(of_.fan_14d, 0) * 100, 1)                       AS \"14일팬증가(%)\",\n  COALESCE(s.total, 0)                                            AS \"신상품수(14일)\",\n  COALESCE(s.sold, 0)                                             AS \"품절수\",\n  ROUND(COALESCE(s.sold,0)::numeric / NULLIF(s.total,0) * 100,1) AS \"품절률(%)\",\n  ROUND(ls.total_score, 1)                                        AS \"종합점수\"\nFROM latest_score ls\nJOIN brands b          ON b.id = ls.brand_id\nLEFT JOIN cur_rank cr  ON cr.brand_id = ls.brand_id\nLEFT JOIN old_rank or_ ON or_.brand_id = ls.brand_id\nLEFT JOIN cur_fan cf   ON cf.brand_id = ls.brand_id\nLEFT JOIN old_fan of_  ON of_.brand_id = ls.brand_id\nLEFT JOIN soldout s    ON s.brand_id = ls.brand_id\nORDER BY ls.total_score DESC",
+          "rawSql": "WITH latest_score AS (\n  SELECT brand_id, total_score\n  FROM brand_scores\n  WHERE scored_at = (SELECT MAX(scored_at) FROM brand_scores)\n),\ncur_rank AS (\n  SELECT DISTINCT ON (brand_id) brand_id, rank\n  FROM brand_rankings ORDER BY brand_id, collected_at DESC\n),\nold_rank AS (\n  SELECT DISTINCT ON (brand_id) brand_id, rank AS rank_7d\n  FROM brand_rankings\n  WHERE collected_at <= NOW() - INTERVAL '7 days'\n  ORDER BY brand_id, collected_at DESC\n),\ncur_fan AS (\n  SELECT DISTINCT ON (brand_id) brand_id, fan_count\n  FROM brand_fans ORDER BY brand_id, collected_at DESC\n),\nold_fan AS (\n  SELECT DISTINCT ON (brand_id) brand_id, fan_count AS fan_14d\n  FROM brand_fans\n  WHERE collected_at <= NOW() - INTERVAL '14 days'\n  ORDER BY brand_id, collected_at DESC\n),\nsoldout AS (\n  SELECT brand_id,\n    COUNT(*) AS total, COUNT(*) FILTER (WHERE is_sold_out) AS sold\n  FROM (\n    SELECT DISTINCT ON (product_id) brand_id, product_id, is_sold_out\n    FROM new_products\n    WHERE first_seen_at > NOW() - INTERVAL '14 days'\n    ORDER BY product_id, first_seen_at DESC\n  ) p\n  GROUP BY brand_id\n),\nsnap_14d AS (\n  SELECT brand_id,\n    SUM(mention_count) AS total_mentions,\n    MIN(best_rank)     AS best_rank_14d\n  FROM brand_snap_mentions\n  WHERE collected_at > NOW() - INTERVAL '14 days'\n    AND brand_id IS NOT NULL\n  GROUP BY brand_id\n)\nSELECT\n  b.name                                                          AS \"브랜드\",\n  cr.rank                                                         AS \"현재순위\",\n  or_.rank_7d                                                     AS \"7일전순위\",\n  (or_.rank_7d - cr.rank)                                         AS \"순위변동\",\n  cf.fan_count                                                    AS \"현재팬수\",\n  ROUND((cf.fan_count - of_.fan_14d)::numeric\n        / NULLIF(of_.fan_14d, 0) * 100, 1)                       AS \"14일팬증가(%)\",\n  COALESCE(s.total, 0)                                            AS \"신상품수(14일)\",\n  COALESCE(s.sold, 0)                                             AS \"품절수\",\n  ROUND(COALESCE(s.sold,0)::numeric / NULLIF(s.total,0) * 100,1) AS \"품절률(%)\",\n  COALESCE(sn.total_mentions, 0)                                  AS \"스냅언급(14일)\",\n  sn.best_rank_14d                                                AS \"스냅최고순위\",\n  ROUND(ls.total_score, 1)                                        AS \"종합점수\"\nFROM latest_score ls\nJOIN brands b          ON b.id = ls.brand_id\nLEFT JOIN cur_rank cr  ON cr.brand_id = ls.brand_id\nLEFT JOIN old_rank or_ ON or_.brand_id = ls.brand_id\nLEFT JOIN cur_fan cf   ON cf.brand_id = ls.brand_id\nLEFT JOIN old_fan of_  ON of_.brand_id = ls.brand_id\nLEFT JOIN soldout s    ON s.brand_id = ls.brand_id\nLEFT JOIN snap_14d sn ON sn.brand_id = ls.brand_id\nORDER BY ls.total_score DESC",
           "refId": "A",
           "sql": { "columns": [], "groupBy": [], "limit": 50 }
         }
@@ -518,6 +578,42 @@
         },
         "overrides": [
           {
+            "matcher": { "id": "byName", "options": "할인율(%)" },
+            "properties": [
+              { "id": "unit", "value": "percent" },
+              { "id": "custom.align", "value": "right" },
+              { "id": "custom.width", "value": 90 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "리뷰수" },
+            "properties": [
+              { "id": "unit", "value": "short" },
+              { "id": "custom.align", "value": "right" },
+              { "id": "custom.width", "value": 80 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "평점" },
+            "properties": [
+              { "id": "decimals", "value": 1 },
+              { "id": "custom.align", "value": "right" },
+              { "id": "custom.width", "value": 70 },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    { "color": "blue", "value": null },
+                    { "color": "yellow", "value": 3.5 },
+                    { "color": "green", "value": 4.0 }
+                  ]
+                }
+              },
+              { "id": "custom.cellOptions", "value": { "type": "color-text" } }
+            ]
+          },
+          {
             "matcher": { "id": "byName", "options": "첫발견" },
             "properties": [
               { "id": "unit", "value": "dateTimeAsLocal" },
@@ -595,12 +691,145 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\n  np.product_name                                                       AS \"상품명\",\n  np.final_price                                                        AS \"판매가\",\n  np.first_seen_at                                                      AS \"첫발견\",\n  np.sold_out_at                                                        AS \"품절시각\",\n  CASE WHEN np.is_sold_out THEN '품절' ELSE '판매중' END                 AS \"상태\",\n  CASE WHEN np.is_sold_out AND np.sold_out_at IS NOT NULL\n    THEN ROUND(EXTRACT(EPOCH FROM (np.sold_out_at - np.first_seen_at)) / 3600.0, 1)\n  END                                                                   AS \"품절소요(시간)\"\nFROM (\n  SELECT DISTINCT ON (product_id)\n    brand_id, product_name, final_price, first_seen_at, sold_out_at, is_sold_out\n  FROM new_products\n  WHERE first_seen_at > NOW() - INTERVAL '14 days'\n  ORDER BY product_id, first_seen_at DESC\n) np\nJOIN brands b ON b.id = np.brand_id\nWHERE b.name = '${brand}'\nORDER BY np.first_seen_at DESC",
+          "rawSql": "SELECT\n  np.product_name                                                       AS \"상품명\",\n  np.final_price                                                        AS \"판매가\",\n  np.discount_rate                                                      AS \"할인율(%)\",\n  np.review_count                                                       AS \"리뷰수\",\n  np.review_score                                                       AS \"평점\",\n  np.first_seen_at                                                      AS \"첫발견\",\n  np.sold_out_at                                                        AS \"품절시각\",\n  CASE WHEN np.is_sold_out THEN '품절' ELSE '판매중' END                 AS \"상태\",\n  CASE WHEN np.is_sold_out AND np.sold_out_at IS NOT NULL\n    THEN ROUND(EXTRACT(EPOCH FROM (np.sold_out_at - np.first_seen_at)) / 3600.0, 1)\n  END                                                                   AS \"품절소요(시간)\"\nFROM (\n  SELECT DISTINCT ON (product_id)\n    brand_id, product_name, final_price, discount_rate, first_seen_at, sold_out_at, is_sold_out, review_count, review_score\n  FROM new_products\n  WHERE first_seen_at > NOW() - INTERVAL '14 days'\n  ORDER BY product_id, first_seen_at DESC\n) np\nJOIN brands b ON b.id = np.brand_id\nWHERE b.name = '${brand}'\nORDER BY np.first_seen_at DESC",
           "refId": "A",
           "sql": { "columns": [], "groupBy": [], "limit": 50 }
         }
       ],
       "title": "${brand} - 신상품 품절 상세 (최근 14일)",
+      "type": "table"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 58 },
+      "id": 11,
+      "title": "스냅 & 신흥 브랜드 분석",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "musinsa-postgres" },
+      "description": "tracked 브랜드의 스냅 STREET 일별 언급 수 추이.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "언급 수",
+            "axisPlacement": "auto",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "auto",
+            "spanNulls": true,
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "off" }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "green", "value": null }]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 10, "w": 12, "x": 0, "y": 59 },
+      "id": 12,
+      "options": {
+        "legend": { "calcs": ["last"], "displayMode": "table", "placement": "right", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "musinsa-postgres" },
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  sm.collected_at AS time,\n  b.name AS metric,\n  sm.mention_count AS value\nFROM brand_snap_mentions sm\nJOIN brands b ON b.id = sm.brand_id\nWHERE $__timeFilter(sm.collected_at)\n  AND b.is_tracked = TRUE\nORDER BY time",
+          "refId": "A",
+          "sql": { "columns": [], "groupBy": [], "limit": 50 }
+        }
+      ],
+      "title": "스냅 언급 추이 (tracked 브랜드)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "musinsa-postgres" },
+      "description": "brands 테이블 미등록 브랜드 중 스냅 STREET에 등장한 신흥 후보. 누적 언급 순 정렬.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "custom": {
+            "align": "auto",
+            "cellOptions": { "type": "auto" },
+            "inspect": false
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "transparent", "value": null }]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "누적언급" },
+            "properties": [
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    { "color": "blue", "value": null },
+                    { "color": "yellow", "value": 5 },
+                    { "color": "green", "value": 20 }
+                  ]
+                }
+              },
+              { "id": "custom.cellOptions", "value": { "type": "color-background" } },
+              { "id": "custom.width", "value": 90 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "최고순위" },
+            "properties": [
+              { "id": "custom.width", "value": 90 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "최근등장" },
+            "properties": [
+              { "id": "unit", "value": "dateTimeAsLocal" },
+              { "id": "custom.width", "value": 160 }
+            ]
+          }
+        ]
+      },
+      "gridPos": { "h": 10, "w": 12, "x": 12, "y": 59 },
+      "id": 13,
+      "options": {
+        "cellHeight": "sm",
+        "footer": { "countRows": false, "fields": "", "reducer": ["sum"], "show": false },
+        "showHeader": true,
+        "sortBy": [{ "desc": true, "displayName": "누적언급" }]
+      },
+      "pluginVersion": "11.1.0",
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "musinsa-postgres" },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  sm.brand_name                AS \"브랜드명\",\n  SUM(sm.mention_count)        AS \"누적언급\",\n  MIN(sm.best_rank)            AS \"최고순위\",\n  SUM(sm.snap_like_sum)        AS \"좋아요합계\",\n  MAX(sm.collected_at)         AS \"최근등장\"\nFROM brand_snap_mentions sm\nWHERE sm.brand_id IS NULL\n  AND sm.collected_at > NOW() - INTERVAL '14 days'\nGROUP BY sm.brand_name\nORDER BY \"누적언급\" DESC\nLIMIT 20",
+          "refId": "A",
+          "sql": { "columns": [], "groupBy": [], "limit": 50 }
+        }
+      ],
+      "title": "신흥 브랜드 발굴 (미등록 스냅 브랜드, 최근 14일)",
       "type": "table"
     }
   ],
@@ -632,5 +861,5 @@
   "timezone": "Asia/Seoul",
   "title": "Musinsa Trends",
   "uid": "musinsa-trends",
-  "version": 2
+  "version": 3
 }
