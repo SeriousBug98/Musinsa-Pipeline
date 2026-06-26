@@ -16,11 +16,13 @@ scoring:
     rank: 0.35      # 무신사 랭킹(매출/조회/후기 반영)이지만 플랫폼 노출 알고리즘의 영향을 받는 2차 지표
     fan: 0.30
     soldout: 0.35   # 고객 직결제 행동 — 가장 직접적인 수요 신호
+    snap: 0.20      # 스냅 UGC 버즈 상승 추세 — 실착 수요 신호 (가중치 합 != 1 허용, compute()가 재정규화)
   thresholds:
     min-fan-count: 500        # fan_growth 최소 팬수
     min-rank-days: 3          # rank_change 최소 관측일
     min-fan-days: 4           # fan_growth 최소 관측일
     soldout-hold-hours: 24    # 신상품 판정 보류 시간
     soldout-shrinkage: 5.0    # 소표본 수축 강도
+    min-snap-days: 3          # snap_buzz 최소 실제 등장일 (14일 창 중 실제 스냅에 나온 날 기준)
   decay-lambda: 0.231         # 지수 감쇠 λ — 반감기 3일 (ln2/3 ≈ 0.231)
   rising-brands-limit: 20

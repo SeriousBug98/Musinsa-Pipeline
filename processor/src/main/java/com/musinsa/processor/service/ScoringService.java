@@ -5,6 +5,7 @@ import com.musinsa.processor.domain.BrandScore;
 import com.musinsa.processor.repository.BrandFanRepository;
 import com.musinsa.processor.repository.BrandRankingRepository;
 import com.musinsa.processor.repository.BrandScoreRepository;
+import com.musinsa.processor.repository.BrandSnapMentionRepository;
 import com.musinsa.processor.repository.NewProductRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -25,7 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
  * 핵심 스코어링 로직.
  *
  * <pre>
- * ① native SQL 3개로 브랜드별 raw 집계값 조회
+ * ① native SQL 4개로 브랜드별 raw 집계값 조회
  * ② brand_id 기준 병합
  * ③ 지표별 백분위 정규화 (0~100, mid-rank)
  * ④ 재정규화 가중합  total = Σ(pct·w) / Σ(w)  (존재하는 지표만)
@@ -40,6 +41,7 @@ public class ScoringService {
     private final BrandRankingRepository rankingRepository;
     private final BrandFanRepository fanRepository;
     private final NewProductRepository newProductRepository;
+    private final BrandSnapMentionRepository snapMentionRepository;
     private final BrandScoreRepository scoreRepository;
     private final ScoringConfig config;
 
@@ -47,11 +49,13 @@ public class ScoringService {
             BrandRankingRepository rankingRepository,
             BrandFanRepository fanRepository,
             NewProductRepository newProductRepository,
+            BrandSnapMentionRepository snapMentionRepository,
             BrandScoreRepository scoreRepository,
             ScoringConfig config) {
         this.rankingRepository = rankingRepository;
         this.fanRepository = fanRepository;
         this.newProductRepository = newProductRepository;
+        this.snapMentionRepository = snapMentionRepository;
         this.scoreRepository = scoreRepository;
         this.config = config;
     }
@@ -86,11 +90,18 @@ public class ScoringService {
                     }
                 });
 
-        List<BrandScore> scores = compute(rankSlopes, fanSlopes, soldoutRaws, scoredAt);
+        Map<Long, Double> snapSlopes = new HashMap<>();
+        snapMentionRepository.aggregateSnapBuzz(t.minSnapDays(), lambda).forEach(r -> {
+            if (r.getSnapSlope() != null) {
+                snapSlopes.put(r.getBrandId(), r.getSnapSlope());
+            }
+        });
+
+        List<BrandScore> scores = compute(rankSlopes, fanSlopes, soldoutRaws, snapSlopes, scoredAt);
         scoreRepository.saveAll(scores);
 
-        log.info("scoring run done: rank={}, fan={}, soldout={}, inserted={}",
-                rankSlopes.size(), fanSlopes.size(), soldoutRaws.size(), scores.size());
+        log.info("scoring run done: rank={}, fan={}, soldout={}, snap={}, inserted={}",
+                rankSlopes.size(), fanSlopes.size(), soldoutRaws.size(), snapSlopes.size(), scores.size());
         return scores.size();
     }
 
@@ -102,11 +113,13 @@ public class ScoringService {
             Map<Long, Double> rankSlopes,
             Map<Long, Double> fanSlopes,
             Map<Long, Double> soldoutRaws,
+            Map<Long, Double> snapSlopes,
             LocalDateTime scoredAt) {
 
         Map<Long, Double> rankPct = toPercentiles(rankSlopes);
         Map<Long, Double> fanPct = toPercentiles(fanSlopes);
         Map<Long, Double> soldoutPct = toPercentiles(soldoutRaws);
+        Map<Long, Double> snapPct = toPercentiles(snapSlopes);
 
         ScoringConfig.Weights w = config.weights();
 
@@ -114,15 +127,17 @@ public class ScoringService {
         candidates.addAll(rankSlopes.keySet());
         candidates.addAll(fanSlopes.keySet());
         candidates.addAll(soldoutRaws.keySet());
+        candidates.addAll(snapSlopes.keySet());
 
         List<BrandScore> result = new ArrayList<>();
         for (Long brandId : candidates) {
             Double rp = rankPct.get(brandId);
             Double fp = fanPct.get(brandId);
             Double sp = soldoutPct.get(brandId);
+            Double np = snapPct.get(brandId);
 
             // 지표가 하나도 없으면 신뢰도 없는 점수 → INSERT 안 함
-            if (rp == null && fp == null && sp == null) {
+            if (rp == null && fp == null && sp == null && np == null) {
                 continue;
             }
 
@@ -140,6 +155,10 @@ public class ScoringService {
                 weightedSum += sp * w.soldout();
                 weightTotal += w.soldout();
             }
+            if (np != null) {
+                weightedSum += np * w.snap();
+                weightTotal += w.snap();
+            }
             double total = weightTotal > 0 ? weightedSum / weightTotal : 0.0;
 
             // 결손 지표의 per-metric 점수는 NOT NULL 컬럼이므로 0.00 으로 저장.
@@ -149,6 +168,7 @@ public class ScoringService {
                     score(rp),
                     score(fp),
                     score(sp),
+                    score(np),
                     score(total),
                     scoredAt));
         }
