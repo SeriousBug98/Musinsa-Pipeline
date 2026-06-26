@@ -3,9 +3,11 @@ package com.musinsa.processor.controller;
 import com.musinsa.processor.config.ScoringConfig;
 import com.musinsa.processor.dto.BrandManagementProjection;
 import com.musinsa.processor.dto.BrandTrendDto;
+import com.musinsa.processor.dto.EmergingBrandDto;
 import com.musinsa.processor.dto.RisingBrandDto;
 import com.musinsa.processor.repository.BrandRepository;
 import com.musinsa.processor.repository.BrandScoreRepository;
+import com.musinsa.processor.repository.BrandSnapMentionRepository;
 import com.musinsa.processor.service.ScoringService;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -24,15 +26,23 @@ import org.springframework.web.bind.annotation.RestController;
 public class BrandController {
 
     private static final int TREND_DAYS = 30;
+    private static final int EMERGING_DAYS_DEFAULT = 7;
 
     private final BrandScoreRepository scoreRepository;
     private final BrandRepository brandRepository;
+    private final BrandSnapMentionRepository snapMentionRepository;
     private final ScoringConfig config;
     private final ScoringService scoringService;
 
-    public BrandController(BrandScoreRepository scoreRepository, BrandRepository brandRepository, ScoringConfig config, ScoringService scoringService) {
+    public BrandController(
+            BrandScoreRepository scoreRepository,
+            BrandRepository brandRepository,
+            BrandSnapMentionRepository snapMentionRepository,
+            ScoringConfig config,
+            ScoringService scoringService) {
         this.scoreRepository = scoreRepository;
         this.brandRepository = brandRepository;
+        this.snapMentionRepository = snapMentionRepository;
         this.config = config;
         this.scoringService = scoringService;
     }
@@ -59,6 +69,20 @@ public class BrandController {
     public Map<String, Integer> scoringRun() {
         int inserted = scoringService.run();
         return Map.of("inserted", inserted);
+    }
+
+    /**
+     * 신흥 브랜드 후보 조회 — brands 테이블 미매칭(brand_id=NULL) 스냅 브랜드.
+     * 최근 days 일간 누적 mention_count 내림차순. 기본 7일, 기본 limit=risingBrandsLimit.
+     */
+    @GetMapping("/emerging")
+    public List<EmergingBrandDto> emerging(
+            @RequestParam(required = false) Integer limit,
+            @RequestParam(required = false) Integer days) {
+        int effectiveLimit = limit != null ? limit : config.risingBrandsLimit();
+        int effectiveDays = days != null ? days : EMERGING_DAYS_DEFAULT;
+        LocalDateTime since = LocalDateTime.now().minusDays(effectiveDays);
+        return snapMentionRepository.findEmergingBrands(since, PageRequest.of(0, effectiveLimit));
     }
 
     /** 관리 페이지용 전체 브랜드 목록 (최신 점수 포함). */
