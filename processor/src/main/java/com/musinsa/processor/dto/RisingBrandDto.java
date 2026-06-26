@@ -17,5 +17,6 @@ public record RisingBrandDto(
         BigDecimal fanGrowthScore,
         BigDecimal soldoutSpeedScore,
         BigDecimal snapBuzzScore,
+        BigDecimal reviewVelocityScore,
         LocalDateTime scoredAt) {
 }

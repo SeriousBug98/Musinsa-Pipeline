@@ -12,5 +12,6 @@ public record BrandTrendDto(
         BigDecimal fanGrowthScore,
         BigDecimal soldoutSpeedScore,
         BigDecimal snapBuzzScore,
+        BigDecimal reviewVelocityScore,
         LocalDateTime scoredAt) {
 }

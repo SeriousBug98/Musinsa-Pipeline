@@ -35,6 +35,9 @@ public class BrandScore {
     @Column(name = "snap_buzz_score", nullable = false)
     private BigDecimal snapBuzzScore;
 
+    @Column(name = "review_velocity_score", nullable = false)
+    private BigDecimal reviewVelocityScore;
+
     @Column(name = "total_score", nullable = false)
     private BigDecimal totalScore;
 
@@ -50,6 +53,7 @@ public class BrandScore {
             BigDecimal fanGrowthScore,
             BigDecimal soldoutSpeedScore,
             BigDecimal snapBuzzScore,
+            BigDecimal reviewVelocityScore,
             BigDecimal totalScore,
             LocalDateTime scoredAt) {
         this.brandId = brandId;
@@ -57,6 +61,7 @@ public class BrandScore {
         this.fanGrowthScore = fanGrowthScore;
         this.soldoutSpeedScore = soldoutSpeedScore;
         this.snapBuzzScore = snapBuzzScore;
+        this.reviewVelocityScore = reviewVelocityScore;
         this.totalScore = totalScore;
         this.scoredAt = scoredAt;
     }
@@ -83,6 +88,10 @@ public class BrandScore {
 
     public BigDecimal getSnapBuzzScore() {
         return snapBuzzScore;
+    }
+
+    public BigDecimal getReviewVelocityScore() {
+        return reviewVelocityScore;
     }
 
     public BigDecimal getTotalScore() {

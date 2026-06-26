@@ -21,7 +21,7 @@ public interface BrandScoreRepository extends JpaRepository<BrandScore, Long> {
             SELECT new com.musinsa.processor.dto.RisingBrandDto(
                 b.id, b.musinsaBrandId, b.name,
                 s.totalScore, s.rankChangeScore, s.fanGrowthScore, s.soldoutSpeedScore,
-                s.snapBuzzScore, s.scoredAt)
+                s.snapBuzzScore, s.reviewVelocityScore, s.scoredAt)
             FROM BrandScore s, Brand b
             WHERE s.brandId = b.id
               AND s.scoredAt = (SELECT MAX(s2.scoredAt) FROM BrandScore s2)
@@ -35,7 +35,7 @@ public interface BrandScoreRepository extends JpaRepository<BrandScore, Long> {
     @Query("""
             SELECT new com.musinsa.processor.dto.BrandTrendDto(
                 s.totalScore, s.rankChangeScore, s.fanGrowthScore, s.soldoutSpeedScore,
-                s.snapBuzzScore, s.scoredAt)
+                s.snapBuzzScore, s.reviewVelocityScore, s.scoredAt)
             FROM BrandScore s
             WHERE s.brandId = :brandId
               AND s.scoredAt >= :since

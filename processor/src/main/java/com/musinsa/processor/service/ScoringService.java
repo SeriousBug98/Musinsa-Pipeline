@@ -97,11 +97,18 @@ public class ScoringService {
             }
         });
 
-        List<BrandScore> scores = compute(rankSlopes, fanSlopes, soldoutRaws, snapSlopes, scoredAt);
+        Map<Long, Double> reviewRaws = new HashMap<>();
+        newProductRepository.aggregateReviewVelocity(t.reviewHoldHours(), t.reviewShrinkage()).forEach(r -> {
+            if (r.getReviewVelocityRaw() != null) {
+                reviewRaws.put(r.getBrandId(), r.getReviewVelocityRaw());
+            }
+        });
+
+        List<BrandScore> scores = compute(rankSlopes, fanSlopes, soldoutRaws, snapSlopes, reviewRaws, scoredAt);
         scoreRepository.saveAll(scores);
 
-        log.info("scoring run done: rank={}, fan={}, soldout={}, snap={}, inserted={}",
-                rankSlopes.size(), fanSlopes.size(), soldoutRaws.size(), snapSlopes.size(), scores.size());
+        log.info("scoring run done: rank={}, fan={}, soldout={}, snap={}, review={}, inserted={}",
+                rankSlopes.size(), fanSlopes.size(), soldoutRaws.size(), snapSlopes.size(), reviewRaws.size(), scores.size());
         return scores.size();
     }
 
@@ -114,12 +121,14 @@ public class ScoringService {
             Map<Long, Double> fanSlopes,
             Map<Long, Double> soldoutRaws,
             Map<Long, Double> snapSlopes,
+            Map<Long, Double> reviewRaws,
             LocalDateTime scoredAt) {
 
         Map<Long, Double> rankPct = toPercentiles(rankSlopes);
         Map<Long, Double> fanPct = toPercentiles(fanSlopes);
         Map<Long, Double> soldoutPct = toPercentiles(soldoutRaws);
         Map<Long, Double> snapPct = toPercentiles(snapSlopes);
+        Map<Long, Double> reviewPct = toPercentiles(reviewRaws);
 
         ScoringConfig.Weights w = config.weights();
 
@@ -128,6 +137,7 @@ public class ScoringService {
         candidates.addAll(fanSlopes.keySet());
         candidates.addAll(soldoutRaws.keySet());
         candidates.addAll(snapSlopes.keySet());
+        candidates.addAll(reviewRaws.keySet());
 
         List<BrandScore> result = new ArrayList<>();
         for (Long brandId : candidates) {
@@ -135,9 +145,10 @@ public class ScoringService {
             Double fp = fanPct.get(brandId);
             Double sp = soldoutPct.get(brandId);
             Double np = snapPct.get(brandId);
+            Double rvp = reviewPct.get(brandId);
 
             // 지표가 하나도 없으면 신뢰도 없는 점수 → INSERT 안 함
-            if (rp == null && fp == null && sp == null && np == null) {
+            if (rp == null && fp == null && sp == null && np == null && rvp == null) {
                 continue;
             }
 
@@ -159,6 +170,10 @@ public class ScoringService {
                 weightedSum += np * w.snap();
                 weightTotal += w.snap();
             }
+            if (rvp != null) {
+                weightedSum += rvp * w.reviewVelocity();
+                weightTotal += w.reviewVelocity();
+            }
             double total = weightTotal > 0 ? weightedSum / weightTotal : 0.0;
 
             // 결손 지표의 per-metric 점수는 NOT NULL 컬럼이므로 0.00 으로 저장.
@@ -169,6 +184,7 @@ public class ScoringService {
                     score(fp),
                     score(sp),
                     score(np),
+                    score(rvp),
                     score(total),
                     scoredAt));
         }

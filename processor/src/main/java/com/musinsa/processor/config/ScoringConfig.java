@@ -12,7 +12,7 @@ public record ScoringConfig(
         double decayLambda,
         int risingBrandsLimit) {
 
-    public record Weights(double rank, double fan, double soldout, double snap) {
+    public record Weights(double rank, double fan, double soldout, double snap, double reviewVelocity) {
     }
 
     public record Thresholds(
@@ -21,6 +21,8 @@ public record ScoringConfig(
             int minFanDays,
             int soldoutHoldHours,
             double soldoutShrinkage,
-            int minSnapDays) {
+            int minSnapDays,
+            int reviewHoldHours,
+            double reviewShrinkage) {
     }
 }
