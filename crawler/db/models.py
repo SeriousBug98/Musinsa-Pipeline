@@ -85,7 +85,7 @@ class NewProduct(Base):
     sold_out_at: Mapped[datetime | None] = mapped_column(DateTime)
     review_count: Mapped[int | None] = mapped_column(Integer)
     first_review_count: Mapped[int | None] = mapped_column(Integer)
-    review_score: Mapped[float | None] = mapped_column(Numeric(3, 1))
+    review_score: Mapped[float | None] = mapped_column(Numeric(4, 1))
     thumbnail_url: Mapped[str | None] = mapped_column(String(500))
 
     brand: Mapped["Brand"] = relationship(back_populates="new_products")

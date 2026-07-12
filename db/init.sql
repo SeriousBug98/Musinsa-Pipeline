@@ -51,7 +51,7 @@ CREATE TABLE new_products (
     sold_out_at         TIMESTAMP,
     review_count        INTEGER,
     first_review_count  INTEGER,
-    review_score        DECIMAL(3,1),
+    review_score        DECIMAL(4,1),
     thumbnail_url       VARCHAR(500),
     UNIQUE(product_id, category_code)
 );
