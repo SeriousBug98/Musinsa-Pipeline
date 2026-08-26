@@ -130,7 +130,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT DISTINCT ON (bs.brand_id)\n  b.name AS \"브랜드\",\n  b.link_url AS \"링크\",\n  ROUND(bs.total_score, 1) AS \"종합\",\n  ROUND(bs.rank_change_score, 1) AS \"랭킹\",\n  ROUND(bs.fan_growth_score, 1) AS \"팬\",\n  ROUND(bs.soldout_speed_score, 1) AS \"품절\",\n  ROUND(bs.snap_buzz_score, 1) AS \"스냅\",\n  ROUND(bs.review_velocity_score, 1) AS \"리뷰속도\",\n  bs.scored_at AS \"기준시각\"\nFROM brand_scores bs\nJOIN brands b ON b.id = bs.brand_id\nWHERE bs.scored_at = (SELECT MAX(scored_at) FROM brand_scores)\nORDER BY bs.brand_id, bs.total_score DESC",
+          "rawSql": "SELECT DISTINCT ON (bs.brand_id)\n  b.name AS \"브랜드\",\n  b.link_url AS \"링크\",\n  ROUND(bs.total_score, 1) AS \"종합\",\n  ROUND(bs.rank_change_score, 1) AS \"랭킹\",\n  ROUND(bs.fan_growth_score, 1) AS \"팬\",\n  ROUND(bs.soldout_speed_score, 1) AS \"품절\",\n  ROUND(bs.snap_buzz_score, 1) AS \"스냅\",\n  ROUND(bs.review_velocity_score, 1) AS \"리뷰속도\",\n  bs.scored_at AT TIME ZONE 'Asia/Seoul' AS \"기준시각\"\nFROM brand_scores bs\nJOIN brands b ON b.id = bs.brand_id\nWHERE bs.scored_at = (SELECT MAX(scored_at) FROM brand_scores)\nORDER BY bs.brand_id, bs.total_score DESC",
           "refId": "A",
           "sql": { "columns": [], "groupBy": [], "limit": 50 }
         }
@@ -183,7 +183,7 @@
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT\n  r.collected_at AS time,\n  b.name AS metric,\n  r.rank AS value\nFROM brand_rankings r\nJOIN brands b ON b.id = r.brand_id\nWHERE $__timeFilter(r.collected_at)\n  AND b.is_tracked = TRUE\nORDER BY time",
+          "rawSql": "SELECT\n  r.collected_at AT TIME ZONE 'Asia/Seoul' AS time,\n  b.name AS metric,\n  r.rank AS value\nFROM brand_rankings r\nJOIN brands b ON b.id = r.brand_id\nWHERE $__timeFilter(r.collected_at)\n  AND b.is_tracked = TRUE\nORDER BY time",
           "refId": "A",
           "sql": { "columns": [], "groupBy": [], "limit": 50 }
         }
@@ -236,7 +236,7 @@
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT\n  f.collected_at AS time,\n  b.name AS metric,\n  f.fan_count AS value\nFROM brand_fans f\nJOIN brands b ON b.id = f.brand_id\nWHERE $__timeFilter(f.collected_at)\n  AND b.is_tracked = TRUE\nORDER BY time",
+          "rawSql": "SELECT\n  f.collected_at AT TIME ZONE 'Asia/Seoul' AS time,\n  b.name AS metric,\n  f.fan_count AS value\nFROM brand_fans f\nJOIN brands b ON b.id = f.brand_id\nWHERE $__timeFilter(f.collected_at)\n  AND b.is_tracked = TRUE\nORDER BY time",
           "refId": "A",
           "sql": { "columns": [], "groupBy": [], "limit": 50 }
         }
@@ -500,7 +500,7 @@
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT\n  r.collected_at AS time,\n  b.name AS metric,\n  r.rank AS value\nFROM brand_rankings r\nJOIN brands b ON b.id = r.brand_id\nWHERE $__timeFilter(r.collected_at)\n  AND b.name = '${brand}'\nORDER BY time",
+          "rawSql": "SELECT\n  r.collected_at AT TIME ZONE 'Asia/Seoul' AS time,\n  b.name AS metric,\n  r.rank AS value\nFROM brand_rankings r\nJOIN brands b ON b.id = r.brand_id\nWHERE $__timeFilter(r.collected_at)\n  AND b.name = '${brand}'\nORDER BY time",
           "refId": "A",
           "sql": { "columns": [], "groupBy": [], "limit": 50 }
         }
@@ -553,7 +553,7 @@
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT\n  f.collected_at AS time,\n  b.name AS metric,\n  f.fan_count AS value\nFROM brand_fans f\nJOIN brands b ON b.id = f.brand_id\nWHERE $__timeFilter(f.collected_at)\n  AND b.name = '${brand}'\nORDER BY time",
+          "rawSql": "SELECT\n  f.collected_at AT TIME ZONE 'Asia/Seoul' AS time,\n  b.name AS metric,\n  f.fan_count AS value\nFROM brand_fans f\nJOIN brands b ON b.id = f.brand_id\nWHERE $__timeFilter(f.collected_at)\n  AND b.name = '${brand}'\nORDER BY time",
           "refId": "A",
           "sql": { "columns": [], "groupBy": [], "limit": 50 }
         }
@@ -691,7 +691,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\n  np.product_name                                                       AS \"상품명\",\n  np.final_price                                                        AS \"판매가\",\n  np.discount_rate                                                      AS \"할인율(%)\",\n  np.review_count                                                       AS \"리뷰수\",\n  np.review_score                                                       AS \"만족도(%)\",\n  np.first_seen_at                                                      AS \"첫발견\",\n  np.sold_out_at                                                        AS \"품절시각\",\n  CASE WHEN np.is_sold_out THEN '품절' ELSE '판매중' END                 AS \"상태\",\n  CASE WHEN np.is_sold_out AND np.sold_out_at IS NOT NULL\n    THEN ROUND(EXTRACT(EPOCH FROM (np.sold_out_at - np.first_seen_at)) / 3600.0, 1)\n  END                                                                   AS \"품절소요(시간)\"\nFROM (\n  SELECT DISTINCT ON (product_id)\n    brand_id, product_name, final_price, discount_rate, first_seen_at, sold_out_at, is_sold_out, review_count, review_score\n  FROM new_products\n  WHERE first_seen_at > NOW() - INTERVAL '14 days'\n  ORDER BY product_id, first_seen_at DESC\n) np\nJOIN brands b ON b.id = np.brand_id\nWHERE b.name = '${brand}'\nORDER BY np.first_seen_at DESC",
+          "rawSql": "SELECT\n  np.product_name                                                       AS \"상품명\",\n  np.final_price                                                        AS \"판매가\",\n  np.discount_rate                                                      AS \"할인율(%)\",\n  np.review_count                                                       AS \"리뷰수\",\n  np.review_score                                                       AS \"만족도(%)\",\n  np.first_seen_at AT TIME ZONE 'Asia/Seoul'                            AS \"첫발견\",\n  np.sold_out_at AT TIME ZONE 'Asia/Seoul'                              AS \"품절시각\",\n  CASE WHEN np.is_sold_out THEN '품절' ELSE '판매중' END                 AS \"상태\",\n  CASE WHEN np.is_sold_out AND np.sold_out_at IS NOT NULL\n    THEN ROUND(EXTRACT(EPOCH FROM (np.sold_out_at - np.first_seen_at)) / 3600.0, 1)\n  END                                                                   AS \"품절소요(시간)\"\nFROM (\n  SELECT DISTINCT ON (product_id)\n    brand_id, product_name, final_price, discount_rate, first_seen_at, sold_out_at, is_sold_out, review_count, review_score\n  FROM new_products\n  WHERE first_seen_at > NOW() - INTERVAL '14 days'\n  ORDER BY product_id, first_seen_at DESC\n) np\nJOIN brands b ON b.id = np.brand_id\nWHERE b.name = '${brand}'\nORDER BY np.first_seen_at DESC",
           "refId": "A",
           "sql": { "columns": [], "groupBy": [], "limit": 50 }
         }
@@ -751,7 +751,7 @@
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT\n  sm.collected_at AS time,\n  b.name AS metric,\n  sm.mention_count AS value\nFROM brand_snap_mentions sm\nJOIN brands b ON b.id = sm.brand_id\nWHERE $__timeFilter(sm.collected_at)\n  AND b.is_tracked = TRUE\nORDER BY time",
+          "rawSql": "SELECT\n  sm.collected_at AT TIME ZONE 'Asia/Seoul' AS time,\n  b.name AS metric,\n  sm.mention_count AS value\nFROM brand_snap_mentions sm\nJOIN brands b ON b.id = sm.brand_id\nWHERE $__timeFilter(sm.collected_at)\n  AND b.is_tracked = TRUE\nORDER BY time",
           "refId": "A",
           "sql": { "columns": [], "groupBy": [], "limit": 50 }
         }
@@ -824,7 +824,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\n  sm.brand_name                AS \"브랜드명\",\n  SUM(sm.mention_count)        AS \"누적언급\",\n  MIN(sm.best_rank)            AS \"최고순위\",\n  SUM(sm.snap_like_sum)        AS \"좋아요합계\",\n  MAX(sm.collected_at)         AS \"최근등장\"\nFROM brand_snap_mentions sm\nWHERE sm.brand_id IS NULL\n  AND sm.collected_at > NOW() - INTERVAL '14 days'\nGROUP BY sm.brand_name\nORDER BY \"누적언급\" DESC\nLIMIT 20",
+          "rawSql": "SELECT\n  sm.brand_name                AS \"브랜드명\",\n  SUM(sm.mention_count)        AS \"누적언급\",\n  MIN(sm.best_rank)            AS \"최고순위\",\n  SUM(sm.snap_like_sum)        AS \"좋아요합계\",\n  MAX(sm.collected_at) AT TIME ZONE 'Asia/Seoul'  AS \"최근등장\"\nFROM brand_snap_mentions sm\nWHERE sm.brand_id IS NULL\n  AND sm.collected_at > NOW() - INTERVAL '14 days'\nGROUP BY sm.brand_name\nORDER BY \"누적언급\" DESC\nLIMIT 20",
           "refId": "A",
           "sql": { "columns": [], "groupBy": [], "limit": 50 }
         }

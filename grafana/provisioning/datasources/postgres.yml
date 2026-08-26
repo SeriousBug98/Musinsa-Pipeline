@@ -12,5 +12,6 @@ datasources:
     jsonData:
       sslmode: disable
       postgresVersion: 1500
+      timezone: Asia/Seoul
     isDefault: true
     editable: false
