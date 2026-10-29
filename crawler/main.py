@@ -1,5 +1,7 @@
+import argparse
 import logging
 import logging.handlers
+import sys
 from datetime import datetime
 from pathlib import Path
 
@@ -15,6 +17,15 @@ from collectors.snap_collector import collect_snap_mentions
 
 LOG_DIR = Path(__file__).resolve().parent / "logs"
 LOG_DIR.mkdir(exist_ok=True)
+
+# --job 단발 실행용 (GitHub Actions cron). 예외를 삼키지 않아 실패 시 exit 1.
+ONE_SHOT_JOBS = {
+    "brand_list": collect_brand_list,
+    "rankings": collect_rankings,
+    "fans": collect_fans,
+    "products": collect_new_products,
+    "snaps": collect_snap_mentions,
+}
 
 
 def setup_logging() -> None:
@@ -72,8 +83,21 @@ def job_snaps() -> None:
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--job", choices=ONE_SHOT_JOBS, help="지정 시 해당 작업만 1회 실행 후 종료")
+    args = parser.parse_args()
+
     setup_logging()
     logger = logging.getLogger(__name__)
+
+    if args.job:
+        try:
+            count = ONE_SHOT_JOBS[args.job]()
+        except Exception:
+            logger.exception("%s job failed", args.job)
+            sys.exit(1)
+        logger.info("%s job done: %s", args.job, count)
+        return
 
     scheduler = BlockingScheduler(timezone="Asia/Seoul")
 
