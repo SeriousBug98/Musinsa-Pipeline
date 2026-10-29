@@ -1,10 +1,12 @@
 """브랜드 목록 수집기.
 
 무신사의 정적 브랜드 목록 JSON을 받아 `brands` 테이블에 upsert 한다.
-- 적재 대상은 `subCategoryList` 에 "스트릿캐주얼" 이 포함된 브랜드로 한정한다.
+- 적재 대상은 `subCategoryList` 에 "스트릿캐주얼" 이 포함된 브랜드 + config/tracked_brands.yaml 의 브랜드.
+  (무신사 분류가 스트릿캐주얼이 아니어도 직접 고른 브랜드는 수집)
 - `musinsa_brand_id` 기준 충돌 시 name / english_name / link_url / is_active 갱신
 - `joined_at` 은 최초 insert 시점의 값을 보존 (덮어쓰지 않음)
-- `is_tracked` 는 DB 를 진실 원천으로 관리 (API/웹 UI 로 직접 토글)
+- `is_tracked` 는 tracked_brands.yaml 이 유일한 진실 원천 — 매 실행마다 yaml 과 동일하게 맞춘다
+  (API/웹 UI 로 토글해도 다음 실행 때 yaml 기준으로 되돌아감)
 """
 
 from __future__ import annotations
@@ -15,6 +17,8 @@ from pathlib import Path
 from typing import Iterable
 
 import requests
+import yaml
+from sqlalchemy import update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from db.connection import get_session
@@ -36,6 +40,14 @@ STREET_CASUAL_LABEL = "스트릿캐주얼"
 # joined_at 을 응답에서 파싱하지 못한 브랜드용 sentinel.
 # 분석 단계의 "신규 입점 30일 이내" 규칙에 잘못 걸리지 않도록 충분히 과거로 둔다.
 UNKNOWN_JOINED_AT = datetime(1970, 1, 1)
+
+TRACKED_BRANDS_PATH = Path(__file__).resolve().parent.parent / "config" / "tracked_brands.yaml"
+
+
+def _load_tracked_ids() -> set[str]:
+    """yaml 이 없으면 예외 — 조용히 넘어가면 전체 브랜드가 추적 해제되므로."""
+    data = yaml.safe_load(TRACKED_BRANDS_PATH.read_text(encoding="utf-8")) or {}
+    return {str(b).strip() for b in data.get("tracked_brands") or [] if str(b).strip()}
 
 
 def _fetch_brand_list() -> dict | list:
@@ -148,8 +160,17 @@ def _upsert_brands(rows: list[dict]) -> int:
     return len(rows)
 
 
+def _sync_tracked(tracked_ids: set[str]) -> int:
+    """is_tracked 를 yaml 목록과 일치시킨다. 반환값은 값이 바뀐 행 수."""
+    want = Brand.musinsa_brand_id.in_(tracked_ids)
+    stmt = update(Brand).where(Brand.is_tracked.is_distinct_from(want)).values(is_tracked=want)
+    with get_session() as session:
+        return session.execute(stmt).rowcount
+
+
 def collect_brand_list() -> int:
     """브랜드 목록을 수집해 upsert 한다. 반환값은 upsert 한 행 수."""
+    tracked_ids = _load_tracked_ids()
     logger.info("brand_list: fetching %s", BRAND_LIST_URL)
     payload = _fetch_brand_list()
 
@@ -158,12 +179,15 @@ def collect_brand_list() -> int:
     total = 0
     filtered_out = 0
     skipped = 0
+    tracked_extra = 0
     for entry in _iter_brand_entries(payload):
         total += 1
-        if not _is_street_casual(entry):
+        norm = _normalize(entry)
+        is_tracked = norm is not None and norm["musinsa_brand_id"] in tracked_ids
+        street = _is_street_casual(entry)
+        if not street and not is_tracked:
             filtered_out += 1
             continue
-        norm = _normalize(entry)
         if norm is None:
             skipped += 1
             continue
@@ -171,21 +195,28 @@ def collect_brand_list() -> int:
             continue
         seen.add(norm["musinsa_brand_id"])
         rows.append(norm)
+        if not street:
+            tracked_extra += 1
 
     logger.info(
-        "brand_list: filter total=%d street_casual=%d filtered_out=%d skipped=%d",
+        "brand_list: filter total=%d street_casual=%d tracked_extra=%d filtered_out=%d skipped=%d",
         total,
-        len(rows),
+        len(rows) - tracked_extra,
+        tracked_extra,
         filtered_out,
         skipped,
     )
+    unknown = tracked_ids - seen
+    if unknown:
+        logger.warning("brand_list: tracked_brands.yaml 의 ID 가 무신사 목록에 없음: %s", sorted(unknown))
 
     if not rows:
         logger.warning("brand_list: no street-casual brands matched")
         return 0
 
     upserted = _upsert_brands(rows)
-    logger.info("brand_list: upserted=%d", upserted)
+    changed = _sync_tracked(tracked_ids)
+    logger.info("brand_list: upserted=%d tracked=%d tracked_changed=%d", upserted, len(tracked_ids), changed)
     return upserted
 
 
