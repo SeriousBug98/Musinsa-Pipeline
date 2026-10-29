@@ -1,0 +1,5 @@
+# 스코어링 1회 실행 후 종료 (ScoringBatchRunner). 웹 서버는 띄우지 않음.
+#   java -jar app.jar --spring.profiles.active=batch
+spring:
+  main:
+    web-application-type: none
