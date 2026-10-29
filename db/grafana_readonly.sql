@@ -12,7 +12,8 @@ BEGIN
   END IF;
 END $$;
 
-ALTER ROLE grafana_ro PASSWORD :'grafana_password';
+-- init.sql 이 NOLOGIN 으로 먼저 만들어두므로 LOGIN 도 여기서 부여
+ALTER ROLE grafana_ro LOGIN PASSWORD :'grafana_password';
 
 DO $$
 BEGIN
