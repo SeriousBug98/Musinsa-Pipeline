@@ -1,0 +1,25 @@
+name: keepalive
+
+# public 레포는 60일간 활동이 없으면 예약 워크플로가 자동 비활성화된다.
+# 매월 예약 워크플로들을 enable API 로 다시 활성화해 비활성 타이머를 리셋한다 (더미 커밋 없이).
+on:
+  schedule:
+    - cron: "0 0 1,15 * *"  # 매월 1일·15일 09:00 KST
+  workflow_dispatch:
+
+permissions:
+  actions: write
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Re-enable scheduled workflows
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          for wf in crawler.yml processor.yml keepalive.yml; do
+            gh api -X PUT "repos/$REPO/actions/workflows/$wf/enable"
+            echo "enabled: $wf"
+          done
